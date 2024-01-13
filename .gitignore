@@ -1,0 +1,12 @@
+#忽略java,python的编译文件
+*.class
+*.pyc
+#忽略开发工具自己的配置文件
+.idea
+*.iml
+
+
+.idea/
+
+
+*/target/*
