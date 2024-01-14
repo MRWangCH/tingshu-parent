@@ -2,11 +2,9 @@ package com.atguigu.tingshu.album.service.impl;
 
 import cn.hutool.core.collection.CollectionUtil;
 import com.alibaba.fastjson.JSONObject;
-import com.atguigu.tingshu.album.mapper.BaseCategory1Mapper;
-import com.atguigu.tingshu.album.mapper.BaseCategory2Mapper;
-import com.atguigu.tingshu.album.mapper.BaseCategory3Mapper;
-import com.atguigu.tingshu.album.mapper.BaseCategoryViewMapper;
+import com.atguigu.tingshu.album.mapper.*;
 import com.atguigu.tingshu.album.service.BaseCategoryService;
+import com.atguigu.tingshu.model.album.BaseAttribute;
 import com.atguigu.tingshu.model.album.BaseCategory1;
 import com.atguigu.tingshu.model.album.BaseCategoryView;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -33,6 +31,9 @@ public class BaseCategoryServiceImpl extends ServiceImpl<BaseCategory1Mapper, Ba
 
 	@Autowired
 	private BaseCategoryViewMapper baseCategoryViewMapper;
+
+	@Autowired
+	private BaseAttributeMapper baseAttributeMapper;
 
 	@Override
 	public List<JSONObject> getBaseCategoryList() {
@@ -83,5 +84,17 @@ public class BaseCategoryServiceImpl extends ServiceImpl<BaseCategory1Mapper, Ba
 			}
 		}
 		return listResult;
+	}
+
+	/**
+	 * 根据一级分类Id获取分类属性以及属性值
+	 * @param category1Id
+	 * @return
+	 */
+	@Override
+	public List<BaseAttribute> getAttributeByCategoryId(Long category1Id) {
+		//
+		List<BaseAttribute> list = baseAttributeMapper.getAttributeByCategoryId(category1Id);
+		return list;
 	}
 }
