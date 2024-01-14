@@ -52,12 +52,35 @@ public class BaseCategoryServiceImpl extends ServiceImpl<BaseCategory1Mapper, Ba
 				category1.put("categoryId", category1Id);
 				category1.put("categoryName", category1Name);
 
-				//TODO 一级分类下的二级分类为空
-				listResult.add(category1);
-			}
-			//3 在一级分类内部封装二级分类，将二级分类加入到一级分类的catagorychild中
+				//一级分类下的二级分类为空
+				Map<Long, List<BaseCategoryView>> category2MapList = entry1.getValue().stream().collect(Collectors.groupingBy(BaseCategoryView::getCategory2Id));
+				List<Object> category2List = new ArrayList<>();
+				//2.2 遍历map集合
+				for (Map.Entry<Long, List<BaseCategoryView>> entry2 : category2MapList.entrySet()) {
+					Long category2Id = entry2.getKey();
+					String category2Name = entry2.getValue().get(0).getCategory2Name();
+					JSONObject category2 = new JSONObject();
+					category2.put("categoryId", category2Id);
+					category2.put("categoryName", category2Name);
+					category2List.add(category2);
+					//4 在二级分类内部封装三级分类，将三级分类加入到二级分类的catagorychild中
+					List<Object> category3List = new ArrayList<>();
+					for (BaseCategoryView baseCategoryView : entry2.getValue()) {
+						JSONObject category3 = new JSONObject();
+						category3.put("categoryId", baseCategoryView.getCategory3Id());
+						category3.put("categoryName", baseCategoryView.getCategory3Name());
+						category3List.add(category3);
+					}
+					category2.put("categoryChild",category3List);
 
-			//4 在二级分类内部封装三级分类，将三级分类加入到二级分类的catagorychild中
+					category2List.add(category2);
+				}
+
+				//3 在一级分类内部封装二级分类，将二级分类加入到一级分类的catagorychild中
+				category1.put("categoryChild",category2List);
+				listResult.add(category1);
+
+			}
 		}
 		return listResult;
 	}
