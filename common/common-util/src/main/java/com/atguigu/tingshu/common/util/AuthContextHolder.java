@@ -13,7 +13,9 @@ public class AuthContextHolder {
     }
 
     public static Long getUserId() {
-        return userId.get();
+//        return userId.get();
+        //TODO 暂时写成固定
+        return 1L;
     }
 
     public static void removeUserId() {
