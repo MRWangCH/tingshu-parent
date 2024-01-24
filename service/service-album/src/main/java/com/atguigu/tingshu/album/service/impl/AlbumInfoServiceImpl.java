@@ -10,8 +10,11 @@ import com.atguigu.tingshu.common.constant.SystemConstant;
 import com.atguigu.tingshu.model.album.AlbumAttributeValue;
 import com.atguigu.tingshu.model.album.AlbumInfo;
 import com.atguigu.tingshu.model.album.AlbumStat;
+import com.atguigu.tingshu.query.album.AlbumInfoQuery;
 import com.atguigu.tingshu.vo.album.AlbumAttributeValueVo;
 import com.atguigu.tingshu.vo.album.AlbumInfoVo;
+import com.atguigu.tingshu.vo.album.AlbumListVo;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -89,5 +92,16 @@ public class AlbumInfoServiceImpl extends ServiceImpl<AlbumInfoMapper, AlbumInfo
 		albumStat.setStatType(statType);
 		albumStat.setStatNum(0);
 		albumStatMapper.insert(albumStat);
+	}
+
+	/**
+	 * 分页获取用户专辑列表
+	 * @param pageInfo MP查询对象
+	 * @param albumInfoQuery
+	 * @return
+	 */
+	@Override
+	public Page<AlbumListVo> getUserAlbumByPage(Page<AlbumListVo> pageInfo, AlbumInfoQuery albumInfoQuery) {
+		return albumInfoMapper.getUserAlbumByPage(pageInfo, albumInfoQuery);
 	}
 }
