@@ -43,4 +43,13 @@ public interface AlbumInfoService extends IService<AlbumInfo> {
      * @return
      */
     AlbumInfo getAlbumInfo(Long id);
+
+    /**
+     * 专辑修改
+     * TODO 该接口必须登录才能访问
+     * @param id 专辑id
+     * @param albumInfovo 修改后的专辑
+     * @return
+     */
+    void updateAlbumInfo(Long id, AlbumInfoVo albumInfovo);
 }
