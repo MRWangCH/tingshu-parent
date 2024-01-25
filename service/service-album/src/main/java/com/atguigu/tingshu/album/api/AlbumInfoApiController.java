@@ -3,6 +3,7 @@ package com.atguigu.tingshu.album.api;
 import com.atguigu.tingshu.album.service.AlbumInfoService;
 import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.common.util.AuthContextHolder;
+import com.atguigu.tingshu.model.album.AlbumInfo;
 import com.atguigu.tingshu.query.album.AlbumInfoQuery;
 import com.atguigu.tingshu.vo.album.AlbumInfoVo;
 import com.atguigu.tingshu.vo.album.AlbumListVo;
@@ -61,6 +62,7 @@ public class AlbumInfoApiController {
 
 	/**
 	 * 根据专辑id删除专辑
+	 * TODO 该接口必须登录才能访问
 	 * @param id 专辑id
 	 * @return
 	 */
@@ -69,6 +71,19 @@ public class AlbumInfoApiController {
 	public Result removeAlbumInfo(@PathVariable ("id") Long id){
 		albumInfoService.removeAlbumInfo(id);
 		return Result.ok();
+	}
+
+	/**
+	 * 修改时根据专辑id查询数据的回写
+	 * TODO 该接口必须登录才能访问
+	 * @param id 专辑id
+	 * @return
+	 */
+	@Operation(summary = "修改时根据专辑id查询数据的回写")
+	@GetMapping("/albumInfo/getAlbumInfo/{id}")
+	public Result<AlbumInfo> getAlbumInfo(@PathVariable("id") Long id){
+		AlbumInfo albumInfo = albumInfoService.getAlbumInfo(id);
+		return Result.ok(albumInfo);
 	}
 }
 
