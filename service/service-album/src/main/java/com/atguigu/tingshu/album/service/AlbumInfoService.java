@@ -7,6 +7,8 @@ import com.atguigu.tingshu.vo.album.AlbumListVo;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 
+import java.util.List;
+
 public interface AlbumInfoService extends IService<AlbumInfo> {
 
     /**
@@ -52,4 +54,11 @@ public interface AlbumInfoService extends IService<AlbumInfo> {
      * @return
      */
     void updateAlbumInfo(Long id, AlbumInfoVo albumInfovo);
+
+    /**
+     * 查询当前登录用户的所有专辑列表
+     * TODO 该接口必须登录才能访问
+     * @return
+     */
+    List<AlbumInfo> getUserAlbumList(Long userId);
 }

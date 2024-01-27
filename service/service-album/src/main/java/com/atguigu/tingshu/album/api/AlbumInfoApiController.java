@@ -14,6 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Tag(name = "专辑管理")
 @RestController
 @RequestMapping("api/album")
@@ -99,5 +101,21 @@ public class AlbumInfoApiController {
 		albumInfoService.updateAlbumInfo(id, albumInfovo);
 		return Result.ok();
 	}
+
+    /**
+     * 查询当前登录用户的所有专辑列表
+     * TODO 该接口必须登录才能访问
+     * @return
+     */
+	@Operation(summary = "查询专辑列表")
+	@GetMapping("/albumInfo/findUserAllAlbumList")
+    public Result<List<AlbumInfo>> findUserAllAlbumList(){
+	    //1 获取用户id
+        Long userId = AuthContextHolder.getUserId();
+        //2 调用业务层获取专辑列表
+        List<AlbumInfo> albumList = albumInfoService.getUserAlbumList(userId);
+        return Result.ok(albumList);
+    }
+
 }
 
