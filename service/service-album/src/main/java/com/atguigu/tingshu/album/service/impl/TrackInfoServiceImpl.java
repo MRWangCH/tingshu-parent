@@ -12,8 +12,11 @@ import com.atguigu.tingshu.common.util.UploadFileUtil;
 import com.atguigu.tingshu.model.album.AlbumInfo;
 import com.atguigu.tingshu.model.album.TrackInfo;
 import com.atguigu.tingshu.model.album.TrackStat;
+import com.atguigu.tingshu.query.album.TrackInfoQuery;
 import com.atguigu.tingshu.vo.album.TrackInfoVo;
+import com.atguigu.tingshu.vo.album.TrackListVo;
 import com.atguigu.tingshu.vo.album.TrackMediaInfoVo;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.qcloud.vod.VodUploadClient;
 import com.qcloud.vod.model.VodUploadRequest;
@@ -136,5 +139,16 @@ public class TrackInfoServiceImpl extends ServiceImpl<TrackInfoMapper, TrackInfo
 		trackStat.setStatType(statType);
 		trackStat.setStatNum(0);
 		trackStatMapper.insert(trackStat);
+	}
+
+	/**
+	 * 当前用户声音列表页的分页查询
+	 * @param pageInfo mp分页对象
+	 * @param trackInfoQuery 查询条件
+	 * @return
+	 */
+	@Override
+	public Page<TrackListVo> getUserTrackPage(Page<TrackListVo> pageInfo, TrackInfoQuery trackInfoQuery) {
+		return trackInfoMapper.getUserTrackPage(pageInfo, trackInfoQuery);
 	}
 }

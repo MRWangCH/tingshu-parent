@@ -1,8 +1,12 @@
 package com.atguigu.tingshu.album.service;
 
 import com.atguigu.tingshu.model.album.TrackInfo;
+import com.atguigu.tingshu.query.album.TrackInfoQuery;
 import com.atguigu.tingshu.vo.album.TrackInfoVo;
+import com.atguigu.tingshu.vo.album.TrackListVo;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
+import org.apache.ibatis.annotations.Param;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
@@ -18,7 +22,6 @@ public interface TrackInfoService extends IService<TrackInfo> {
 
     /**
      * 声音的保存
-     * TODO 该接口必须登录后才能访问
      * @param trackInfoVo
      * @return
      */
@@ -30,4 +33,12 @@ public interface TrackInfoService extends IService<TrackInfo> {
      * @param statType
      */
     void saveTrackStat(Long id, String statType);
+
+    /**
+     * 当前用户声音列表页的分页查询
+     * @param pageInfo mp分页对象
+     * @param trackInfoQuery 查询条件
+     * @return
+     */
+    Page<TrackListVo> getUserTrackPage(Page<TrackListVo> pageInfo, TrackInfoQuery trackInfoQuery);
 }

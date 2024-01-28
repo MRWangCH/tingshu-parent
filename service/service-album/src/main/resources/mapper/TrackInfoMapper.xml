@@ -5,5 +5,44 @@
 <mapper namespace="com.atguigu.tingshu.album.mapper.TrackInfoMapper">
 
 
+    <select id="getUserTrackPage" resultType="com.atguigu.tingshu.vo.album.TrackListVo">
+        select info.trackId,
+        info.track_title,
+        info.cover_url,
+        info.media_duration,
+        info.album_id,
+        info.status,
+        info.create_time,
+        max(if(info.stat_type = '0701', info.stat_num, 0)) playStatNum,
+        max(if(info.stat_type = '0702', info.stat_num, 0)) collectStatNum,
+        max(if(info.stat_type = '0703', info.stat_num, 0)) praiseStatNum,
+        max(if(info.stat_type = '0704', info.stat_num, 0)) albumCommentStatNum
+        from (select ti.id trackId,
+        ti.track_title,
+        ti.cover_url,
+        ti.media_duration,
+        ti.album_id,
+        ti.status,
+        ti.create_time,
+        ts.stat_type,
+        ts.stat_num
+        from track_info ti
+        left join track_stat ts on ts.track_id = ti.id
+        <where>
+            <if test="vo.userId != null">
+                and ti.user_id = #{vo.userId}
+            </if>
+            <if test="vo.status != null and vo.status != ''">
+                and ti.status = #{vo.status}
+            </if>
+            <if test="vo.trackTitle != null and vo.trackTitle != ''">
+                and ti.track_title = #{vo.trackTitle}
+            </if>
+            and ti.is_deleted = 0
+        </where>
+        ) info
+        group by info.trackId
+        order by info.create_time
+    </select>
 </mapper>
 
