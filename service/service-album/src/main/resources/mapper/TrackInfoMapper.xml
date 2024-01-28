@@ -36,7 +36,7 @@
                 and ti.status = #{vo.status}
             </if>
             <if test="vo.trackTitle != null and vo.trackTitle != ''">
-                and ti.track_title = #{vo.trackTitle}
+                and ti.track_title = like concat('%', #{vo.trackTitle}, '%')
             </if>
             and ti.is_deleted = 0
         </where>
