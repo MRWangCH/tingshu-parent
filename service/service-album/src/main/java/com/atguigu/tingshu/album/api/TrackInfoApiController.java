@@ -76,5 +76,18 @@ public class TrackInfoApiController {
 		pageInfo = trackInfoService.getUserTrackPage(pageInfo, trackInfoQuery);
 		return Result.ok(pageInfo);
 	}
+
+	/**
+	 * 声音id查询声音信息
+	 * @param id
+	 * @return
+	 */
+	@Operation(summary = "声音id查询声音信息")
+	@GetMapping("/trackInfo/getTrackInfo/{id}")
+	public Result<TrackInfo> getTrackInfo(@PathVariable("id") Long id){
+		TrackInfo trackInfo = trackInfoService.getById(id);
+		return Result.ok(trackInfo);
+	}
+
 }
 
