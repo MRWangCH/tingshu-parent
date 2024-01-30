@@ -42,7 +42,7 @@
         </where>
         ) info
         group by info.trackId
-        order by info.create_time
+        order by info.create_time desc
     </select>
 </mapper>
 
