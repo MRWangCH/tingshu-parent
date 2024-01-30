@@ -89,5 +89,18 @@ public class TrackInfoApiController {
 		return Result.ok(trackInfo);
 	}
 
+	/**
+	 * 根据声音id修改声音
+	 * @param id
+	 * @param trackInfoVo
+	 * @return
+	 */
+	@Operation(summary = "根据声音id修改声音")
+	@PutMapping("/trackInfo/updateTrackInfo/{id}")
+	public Result updateTrackInfo(@PathVariable ("id") Long id, @RequestBody @Validated TrackInfoVo trackInfoVo){
+		trackInfoService.updateTrackInfo(id, trackInfoVo);
+		return Result.ok();
+	}
+
 }
 
