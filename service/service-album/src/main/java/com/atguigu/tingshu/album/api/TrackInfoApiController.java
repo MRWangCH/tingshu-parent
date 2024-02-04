@@ -102,5 +102,17 @@ public class TrackInfoApiController {
 		return Result.ok();
 	}
 
+	/**
+	 * 根据声音id删除声音信息，并不是单表的删除，还需要修改专辑表中声音的数量
+	 * @param id
+	 * @return
+	 */
+	@Operation(summary = "根据声音id删除声音信息")
+	@DeleteMapping("/trackInfo/removeTrackInfo/{id}")
+	public Result removeTrackInfo(@PathVariable("id") Long id){
+		trackInfoService.removeTrackInfo(id);
+		return Result.ok();
+	}
+
 }
 
