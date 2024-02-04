@@ -1,11 +1,16 @@
 package com.atguigu.tingshu.common.login;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * 认证校验的切面类：对自定义注解修饰的放法增强，获取登录用户的id，执行不同业务
@@ -28,6 +33,15 @@ public class GuiGuLoginAspect {
     public Object guiguLoginAspect(ProceedingJoinPoint joinPoint, GuiGuLogin guiGuLogin) {
         Object object = new Object();
         log.info("前置通知执行了。。。");
+        //1 尝试从请求对象中获取用户token（请求头）
+        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+        ServletRequestAttributes sra = (ServletRequestAttributes) requestAttributes;
+
+        HttpServletRequest request = sra.getRequest();
+        HttpServletResponse response = sra.getResponse();
+        //2 根基token获取用户信息，id，名称
+
+        //3 将用户信息隐式传入，在当前线程声生命周期获取到用户信息
         //执行目标方法->切入点方法（被增强的方法）
         object = joinPoint.proceed();
         log.info("后置通知执行了。。。");
