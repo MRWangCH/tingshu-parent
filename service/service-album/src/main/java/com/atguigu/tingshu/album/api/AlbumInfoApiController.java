@@ -1,6 +1,7 @@
 package com.atguigu.tingshu.album.api;
 
 import com.atguigu.tingshu.album.service.AlbumInfoService;
+import com.atguigu.tingshu.common.login.GuiGuLogin;
 import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.common.util.AuthContextHolder;
 import com.atguigu.tingshu.model.album.AlbumInfo;
@@ -10,12 +11,14 @@ import com.atguigu.tingshu.vo.album.AlbumListVo;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @Tag(name = "专辑管理")
 @RestController
 @RequestMapping("api/album")
@@ -48,9 +51,11 @@ public class AlbumInfoApiController {
 	 * @param albumInfoQuery
 	 * @return
 	 */
+	@GuiGuLogin //要求必须登录
 	@Operation(summary = "分页查询当前用户专辑列表")
 	@PostMapping("/albumInfo/findUserAlbumPage/{page}/{limit}")
 	public Result<Page<AlbumListVo>> getUserAlbumByPage(@PathVariable int page, @PathVariable int limit, @RequestBody AlbumInfoQuery albumInfoQuery){
+		log.info("[]getUserAlbumByPage目标方法执行了");
 		//1.封装用户id查询条件
 		Long userId = AuthContextHolder.getUserId();
 		albumInfoQuery.setUserId(userId);
