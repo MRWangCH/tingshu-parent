@@ -26,6 +26,6 @@ public interface TrackInfoMapper extends BaseMapper<TrackInfo> {
      * @param albumId
      * @param orderNum
      */
-    @Update("update track_info set order_num = order_num -1 where album_id = #{albumId} and track_num > #{orderNum} and is_deleted = '0'")
+    @Update("update track_info set order_num = order_num -1 where album_id = #{albumId} and order_num > #{orderNum} and is_deleted = '0'")
     void updateTrackNum(@Param("albumId") Long albumId, @Param("orderNum") Integer orderNum);
 }
