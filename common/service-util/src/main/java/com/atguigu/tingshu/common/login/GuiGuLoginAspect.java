@@ -1,5 +1,10 @@
 package com.atguigu.tingshu.common.login;
 
+import com.atguigu.tingshu.common.constant.RedisConstant;
+import com.atguigu.tingshu.common.execption.GuiguException;
+import com.atguigu.tingshu.common.result.ResultCodeEnum;
+import com.atguigu.tingshu.common.util.AuthContextHolder;
+import com.atguigu.tingshu.vo.user.UserInfoVo;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
@@ -7,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -24,6 +31,9 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @Component //将切面对象注册到ioc容器
 public class GuiGuLoginAspect {
 
+    @Autowired
+    private RedisTemplate redisTemplate;
+
     /**
      * @param joinPoint 切入点方法对象
      * @return guiGuLogin 自定义注解对象
@@ -35,16 +45,37 @@ public class GuiGuLoginAspect {
         log.info("前置通知执行了。。。");
         //1 尝试从请求对象中获取用户token（请求头）
         RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+        //RequestAttributes是接口， ServletRequestAttributes是接口实现类
         ServletRequestAttributes sra = (ServletRequestAttributes) requestAttributes;
 
         HttpServletRequest request = sra.getRequest();
         HttpServletResponse response = sra.getResponse();
         //2 根基token获取用户信息，id，名称
+        //2.1 获取用户token
+        String token = request.getHeader("token");
+        //2.2 拼接登录后存入redis中的key
+        String loginKey = RedisConstant.USER_LOGIN_KEY_PREFIX + token;
+        UserInfoVo userInfoVo = (UserInfoVo) redisTemplate.opsForValue().get(loginKey);
+        if (guiGuLogin.required()){
+            //要求登录才能访问
+            if (userInfoVo == null) {
+                throw  new GuiguException(ResultCodeEnum.LOGIN_AUTH);
+            }
+        }
 
         //3 将用户信息隐式传入，在当前线程声生命周期获取到用户信息
+        if (userInfoVo != null){
+            //将用户id，名称存入ThreadLocal中，以便随时取值
+            AuthContextHolder.setUserId(userInfoVo.getId());
+            AuthContextHolder.setUsername(userInfoVo.getNickname());
+        }
+
         //执行目标方法->切入点方法（被增强的方法）
         object = joinPoint.proceed();
         log.info("后置通知执行了。。。");
+        //避免出现ThreadLocal内存泄漏从而导致内存溢出，必须将ThreadLocal清理数据
+        AuthContextHolder.removeUserId();
+        AuthContextHolder.removeUsername();
         return object;
     }
 }
