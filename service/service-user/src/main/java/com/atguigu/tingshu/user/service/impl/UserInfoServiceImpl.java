@@ -46,10 +46,10 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
     public Map<String, String> weiXinLogin(String code) {
         try {
             //1 根据code调用微信SDK获取用户会话信息 得到微信用户的唯一标识
-            WxMaJscode2SessionResult sessionInfo = wxMaService.getUserService().getSessionInfo(code);
-            if (sessionInfo != null) {
-                String openid = sessionInfo.getOpenid();
-                //String openid = odo3j4q2KskkbbW-krfE-cAxUnzU;
+//            WxMaJscode2SessionResult sessionInfo = wxMaService.getUserService().getSessionInfo(code);
+//            if (sessionInfo != null) {
+//                String openid = sessionInfo.getOpenid();
+                String openid = "odo3j4q2KskkbbW-krfE-cAxUnzU";
                 //2 根据openId查询用户记录 odo3j4q2KskkbbW-krfE-cAxUnzU
                 LambdaQueryWrapper<UserInfo> queryWrapper = new LambdaQueryWrapper<>();
                 queryWrapper.eq(UserInfo::getWxOpenId, openid);
@@ -76,9 +76,9 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
                 HashMap<String, String> mapResult = new HashMap<>();
                 mapResult.put("token", token);
                 return mapResult;
-            }
-            return null;
-        } catch (WxErrorException e) {
+//            }
+//            return null;
+        } catch (Exception e) {
             log.error("微信登录异常{}", e);
             throw new RuntimeException(e);
         }
