@@ -1,11 +1,16 @@
 package com.atguigu.tingshu.user.api;
 
+import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.user.service.UserInfoService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @Tag(name = "微信授权登录接口")
 @RestController
@@ -16,5 +21,15 @@ public class WxLoginApiController {
     @Autowired
     private UserInfoService userInfoService;
 
+    /**
+     * 小程序微信用户登录
+     * @param code 用于获取用户的唯一标识
+     * @return
+     */
+    @GetMapping("/wxLogin/{code}")
+    public Result<Map<String, String>> weiXinLogin(@PathVariable String code){
+        Map<String, String> resultMap = userInfoService.weiXinLogin(code);
+        return Result.ok(resultMap);
+    }
 
 }
