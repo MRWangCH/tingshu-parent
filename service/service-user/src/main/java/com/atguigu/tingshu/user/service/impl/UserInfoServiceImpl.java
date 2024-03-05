@@ -63,7 +63,7 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
             if (userInfo == null) {
                 userInfo = new UserInfo();
                 userInfo.setWxOpenId(openid);
-                userInfo.setNickname("tingyou" + IdUtil.getSnowflake());
+                userInfo.setNickname("tingyou" + IdUtil.getSnowflake().nextId());
                 userInfo.setAvatarUrl("https://oss.aliyuncs.com/aliyun_id_photo_bucket/default_handsome.jpg");
                 userInfoMapper.insert(userInfo);
                 //发送异步MQ消息通知账户微服务初始化当前用户余额信息
