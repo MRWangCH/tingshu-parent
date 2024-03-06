@@ -100,4 +100,17 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         UserInfo userInfo = userInfoMapper.selectById(userId);
         return BeanUtil.copyProperties(userInfo, UserInfoVo.class);
     }
+
+    /**
+     * 修改用户信息
+     * @param userInfoVo
+     */
+    @Override
+    public void updateUser(UserInfoVo userInfoVo) {
+        UserInfo userInfo = new UserInfo();
+        userInfo.setId(userInfoVo.getId());
+        userInfo.setAvatarUrl(userInfoVo.getAvatarUrl());
+        userInfo.setNickname(userInfoVo.getNickname());
+        userInfoMapper.updateById(userInfo);
+    }
 }

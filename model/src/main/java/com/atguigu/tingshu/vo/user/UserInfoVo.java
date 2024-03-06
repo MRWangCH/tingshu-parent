@@ -1,6 +1,7 @@
 package com.atguigu.tingshu.vo.user;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
 
 import java.util.Date;
@@ -15,6 +16,7 @@ public class UserInfoVo {
 	@Schema(description = "微信openId")
 	private String wxOpenId;
 
+	@NotEmpty(message = "昵称为必填项")
 	@Schema(description = "nickname")
 	private String nickname;
 

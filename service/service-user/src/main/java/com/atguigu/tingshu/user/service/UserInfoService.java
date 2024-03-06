@@ -22,4 +22,10 @@ public interface UserInfoService extends IService<UserInfo> {
      * @return
      */
     UserInfoVo getUserInfoVoByUserId(Long userId);
+
+    /**
+     * 修改用户信息
+     * @param userInfoVo
+     */
+    void updateUser(UserInfoVo userInfoVo);
 }
