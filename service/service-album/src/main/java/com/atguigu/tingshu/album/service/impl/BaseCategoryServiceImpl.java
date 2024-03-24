@@ -97,4 +97,14 @@ public class BaseCategoryServiceImpl extends ServiceImpl<BaseCategory1Mapper, Ba
 		List<BaseAttribute> list = baseAttributeMapper.getAttributeByCategoryId(category1Id);
 		return list;
 	}
+
+	/**
+	 * 根据三级分类id（视图的主键） 获取到分类信息
+	 * @param category3Id
+	 * @return
+	 */
+	@Override
+	public BaseCategoryView getCategoryViewBy3Id(Long category3Id) {
+		return baseCategoryViewMapper.selectById(category3Id);
+	}
 }
