@@ -30,11 +30,11 @@ public class AlbumInfoApiController {
 
 
 	/**
-	 * TODO 该接口必须登录才能访问
 	 * 创作者新增专辑
 	 *
 	 * @return
 	 */
+	@GuiGuLogin(required = true)
 	@Operation(summary = "新增专辑")
 	@PostMapping("/albumInfo/saveAlbumInfo")
 	public Result saveAlbumInfo(@RequestBody @Validated AlbumInfoVo albumInfoVo){
@@ -45,7 +45,6 @@ public class AlbumInfoApiController {
 
 	/**
 	 * 分页查询当前用户专辑列表
-	 * TODO 该接口必须登录才能访问
 	 * @param page
 	 * @param limit
 	 * @param albumInfoQuery
@@ -69,10 +68,10 @@ public class AlbumInfoApiController {
 
 	/**
 	 * 根据专辑id删除专辑
-	 * TODO 该接口必须登录才能访问
 	 * @param id 专辑id
 	 * @return
 	 */
+	@GuiGuLogin(required = true)
 	@Operation(summary = "根据专辑id删除专辑")
 	@DeleteMapping("/albumInfo/removeAlbumInfo/{id}")
 	public Result removeAlbumInfo(@PathVariable ("id") Long id){
@@ -82,10 +81,10 @@ public class AlbumInfoApiController {
 
 	/**
 	 * 修改时根据专辑id查询数据的回写
-	 * TODO 该接口必须登录才能访问
 	 * @param id 专辑id
 	 * @return
 	 */
+	@GuiGuLogin(required = true)
 	@Operation(summary = "修改时根据专辑id查询数据的回写")
 	@GetMapping("/albumInfo/getAlbumInfo/{id}")
 	public Result<AlbumInfo> getAlbumInfo(@PathVariable("id") Long id){
@@ -95,11 +94,11 @@ public class AlbumInfoApiController {
 
 	/**
 	 * 专辑修改
-	 * TODO 该接口必须登录才能访问
 	 * @param id 专辑id
 	 * @param albumInfovo 修改后的专辑
 	 * @return
 	 */
+	@GuiGuLogin(required = true)
 	@Operation(summary = "专辑修改")
 	@PutMapping("/albumInfo/updateAlbumInfo/{id}")
 	public Result updateAlbumInfo(@PathVariable("id") Long id, @RequestBody AlbumInfoVo albumInfovo){
@@ -109,9 +108,9 @@ public class AlbumInfoApiController {
 
     /**
      * 查询当前登录用户的所有专辑列表
-     * TODO 该接口必须登录才能访问
      * @return
      */
+	@GuiGuLogin(required = true)
 	@Operation(summary = "查询专辑列表")
 	@GetMapping("/albumInfo/findUserAllAlbumList")
     public Result<List<AlbumInfo>> findUserAllAlbumList(){
