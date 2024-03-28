@@ -84,7 +84,7 @@ public class AlbumInfoApiController {
 	 * @param id 专辑id
 	 * @return
 	 */
-	@GuiGuLogin(required = true)
+//	@GuiGuLogin(required = true)
 	@Operation(summary = "修改时根据专辑id查询数据的回写")
 	@GetMapping("/albumInfo/getAlbumInfo/{id}")
 	public Result<AlbumInfo> getAlbumInfo(@PathVariable("id") Long id){
