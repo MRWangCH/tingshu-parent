@@ -20,6 +20,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 
 
@@ -37,6 +39,9 @@ public class SearchServiceImpl implements SearchService {
     @Autowired
     private UserFeignClient userFeignClient;
 
+    @Autowired
+    private ThreadPoolExecutor threadPoolExecutor;
+
     /**
      * 上架专辑
      *
@@ -49,28 +54,39 @@ public class SearchServiceImpl implements SearchService {
         AlbumInfoIndex albumInfoIndex = new AlbumInfoIndex();
 
         //2 远程调用专辑服务获取专辑以及专辑属性列表信息，为索引库文档对象中的相关属性赋值
-        AlbumInfo albumInfo = albumFeignClient.getAlbumInfo(albumId).getData();
-        Assert.notNull(albumInfo, "专辑信息为空！");
-        BeanUtil.copyProperties(albumInfo, albumInfoIndex);
-        //2.2 处理专辑属性值列表
-        List<AlbumAttributeValue> albumAttributeValueVoList = albumInfo.getAlbumAttributeValueVoList();
-        if (CollectionUtil.isNotEmpty(albumAttributeValueVoList)) {
-            //将List<albumAttributeValueVoList>转成List<attributeValueIndexList>
-            List<AttributeValueIndex> collect = albumAttributeValueVoList.stream().map(a -> {
-                return BeanUtil.copyProperties(a, AttributeValueIndex.class);
-            }).collect(Collectors.toList());
-            albumInfoIndex.setAttributeValueIndexList(collect);
-        }
+        CompletableFuture<AlbumInfo> albumInfoCompletableFuture = CompletableFuture.supplyAsync(() -> {
+            AlbumInfo albumInfo = albumFeignClient.getAlbumInfo(albumId).getData();
+            Assert.notNull(albumInfo, "专辑信息为空！");
+            BeanUtil.copyProperties(albumInfo, albumInfoIndex);
+            //2.2 处理专辑属性值列表
+            List<AlbumAttributeValue> albumAttributeValueVoList = albumInfo.getAlbumAttributeValueVoList();
+            if (CollectionUtil.isNotEmpty(albumAttributeValueVoList)) {
+                //将List<albumAttributeValueVoList>转成List<attributeValueIndexList>
+                List<AttributeValueIndex> collect = albumAttributeValueVoList.stream().map(a -> {
+                    return BeanUtil.copyProperties(a, AttributeValueIndex.class);
+                }).collect(Collectors.toList());
+                albumInfoIndex.setAttributeValueIndexList(collect);
+            }
+            return albumInfo;
+        }, threadPoolExecutor);
+
+
         //3 远程调用用户服务获取用户信息，为索引库文档对象中的相关属性赋值
-        UserInfoVo userInfo = userFeignClient.getUserInfoVoByUserId(albumInfo.getUserId()).getData();
-        Assert.notNull(userInfo,"主播信息不存在！");
-        albumInfoIndex.setAnnouncerName(userInfo.getNickname());
+        CompletableFuture<Void> userInfoComplatableFuture = albumInfoCompletableFuture.thenAcceptAsync(albumInfo -> {
+            UserInfoVo userInfo = userFeignClient.getUserInfoVoByUserId(albumInfo.getUserId()).getData();
+            Assert.notNull(userInfo, "主播信息不存在！");
+            albumInfoIndex.setAnnouncerName(userInfo.getNickname());
+        }, threadPoolExecutor);
 
         //4 远程调用专辑服务获取分类信息
-        BaseCategoryView categoryView = albumFeignClient.getCategoryViewBy3Id(albumInfo.getCategory3Id()).getData();
-        Assert.notNull(categoryView, "分类信息不存在！");
-        albumInfoIndex.setCategory1Id(categoryView.getCategory1Id());
-        albumInfoIndex.setCategory2Id(categoryView.getCategory2Id());
+        CompletableFuture<Void> categoryComplatableFuture = albumInfoCompletableFuture.thenAcceptAsync(albumInfo -> {
+            BaseCategoryView categoryView = albumFeignClient.getCategoryViewBy3Id(albumInfo.getCategory3Id()).getData();
+            Assert.notNull(categoryView, "分类信息不存在！");
+            albumInfoIndex.setCategory1Id(categoryView.getCategory1Id());
+            albumInfoIndex.setCategory2Id(categoryView.getCategory2Id());
+        }, threadPoolExecutor);
+
+        CompletableFuture.allOf(albumInfoCompletableFuture, userInfoComplatableFuture, categoryComplatableFuture).join();
 
         //4 手动随机生成统计值，为索引库文档对象中的相关属性赋值
         int num1 = new Random().nextInt(1000);
