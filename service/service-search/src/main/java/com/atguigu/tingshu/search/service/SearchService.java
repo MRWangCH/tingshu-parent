@@ -9,4 +9,11 @@ public interface SearchService {
      * @return
      */
     void upperAlbum(Long albumId);
+
+    /**
+     * 下架专辑，该接口仅用于测试
+     * @param albumId
+     * @return
+     */
+    void lowerAlbum(Long albumId);
 }

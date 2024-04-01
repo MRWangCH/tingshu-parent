@@ -31,5 +31,17 @@ public class SearchApiController {
         return Result.ok();
     }
 
+    /**
+     * 下架专辑，该接口仅用于测试
+     * @param albumId
+     * @return
+     */
+    @Operation(summary = "下架专辑，该接口仅用于测试")
+    @GetMapping("/albumInfo/lowerAlbum/{albumId}")
+    public Result lowerAlbum(@PathVariable Long albumId){
+        searchService.lowerAlbum(albumId);
+        return Result.ok();
+    }
+
 }
 

@@ -102,4 +102,14 @@ public class SearchServiceImpl implements SearchService {
         //5 调用持久层新增文档
         albumInfoIndexRepository.save(albumInfoIndex);
     }
+
+    /**
+     * 下架专辑，该接口仅用于测试
+     * @param albumId
+     * @return
+     */
+    @Override
+    public void lowerAlbum(Long albumId) {
+        albumInfoIndexRepository.deleteById(albumId);
+    }
 }
