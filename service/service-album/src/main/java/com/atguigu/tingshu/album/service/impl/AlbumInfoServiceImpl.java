@@ -7,7 +7,9 @@ import com.atguigu.tingshu.album.mapper.AlbumInfoMapper;
 import com.atguigu.tingshu.album.mapper.AlbumStatMapper;
 import com.atguigu.tingshu.album.mapper.TrackInfoMapper;
 import com.atguigu.tingshu.album.service.AlbumInfoService;
+import com.atguigu.tingshu.common.constant.KafkaConstant;
 import com.atguigu.tingshu.common.constant.SystemConstant;
+import com.atguigu.tingshu.common.service.KafkaService;
 import com.atguigu.tingshu.model.album.AlbumAttributeValue;
 import com.atguigu.tingshu.model.album.AlbumInfo;
 import com.atguigu.tingshu.model.album.AlbumStat;
@@ -42,6 +44,9 @@ public class AlbumInfoServiceImpl extends ServiceImpl<AlbumInfoMapper, AlbumInfo
 
 	@Autowired
 	private TrackInfoMapper trackInfoMapper;
+
+	@Autowired
+	private KafkaService kafkaService;
 
 	/**
 	 * 新增专辑
@@ -84,6 +89,11 @@ public class AlbumInfoServiceImpl extends ServiceImpl<AlbumInfoMapper, AlbumInfo
 		this.saveAlbumStat(albumId, SystemConstant.ALBUM_STAT_SUBSCRIBE);
 		this.saveAlbumStat(albumId, SystemConstant.ALBUM_STAT_BUY);
 		this.saveAlbumStat(albumId, SystemConstant.ALBUM_STAT_COMMENT);
+
+		//4 发送MQ消息通知搜索服务上架专辑
+		if ("1".equals(albumInfoVo.getIsOpen())) {
+			kafkaService.sendMessage(KafkaConstant.QUEUE_ALBUM_UPPER, albumId.toString());
+		}
 	}
 
 	/**
@@ -137,6 +147,8 @@ public class AlbumInfoServiceImpl extends ServiceImpl<AlbumInfoMapper, AlbumInfo
 		LambdaQueryWrapper<TrackInfo> wrapper2 = new LambdaQueryWrapper<>();
 		wrapper2.eq(TrackInfo::getAlbumId, id);
 		trackInfoMapper.delete(wrapper2);
+
+		kafkaService.sendMessage(KafkaConstant.QUEUE_ALBUM_UPPER, id.toString());
 	}
 
 	/**
@@ -189,6 +201,13 @@ public class AlbumInfoServiceImpl extends ServiceImpl<AlbumInfoMapper, AlbumInfo
 				albumAttributeValueMapper.insert(albumAttributeValue);
 			} );
 
+		}
+		//4 发送MQ消息通知判断公开状态
+		if ("1".equals(albumInfovo.getIsOpen())) {
+			kafkaService.sendMessage(KafkaConstant.QUEUE_ALBUM_UPPER, id.toString());
+		}
+		if ("0".equals(albumInfovo.getIsOpen())) {
+			kafkaService.sendMessage(KafkaConstant.QUEUE_ALBUM_LOWER, id.toString());
 		}
 	}
 
