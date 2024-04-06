@@ -40,7 +40,8 @@ public interface SearchService {
     /**
      * 解析es响应结果，封装自定义结果
      * @param response
+     * @param queryVo
      * @return
      */
-    AlbumSearchResponseVo parseResult(SearchResponse<AlbumInfoIndex> response);
+    AlbumSearchResponseVo parseResult(SearchResponse<AlbumInfoIndex> response, AlbumIndexQuery queryVo);
 }

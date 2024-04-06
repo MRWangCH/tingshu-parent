@@ -9,6 +9,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.NestedQuery;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
+import co.elastic.clients.elasticsearch.core.search.Hit;
 import com.atguigu.tingshu.album.AlbumFeignClient;
 import com.atguigu.tingshu.model.album.AlbumAttributeValue;
 import com.atguigu.tingshu.model.album.AlbumInfo;
@@ -19,6 +20,7 @@ import com.atguigu.tingshu.query.search.AlbumIndexQuery;
 import com.atguigu.tingshu.search.repository.AlbumInfoIndexRepository;
 import com.atguigu.tingshu.search.service.SearchService;
 import com.atguigu.tingshu.user.client.UserFeignClient;
+import com.atguigu.tingshu.vo.search.AlbumInfoIndexVo;
 import com.atguigu.tingshu.vo.search.AlbumSearchResponseVo;
 import com.atguigu.tingshu.vo.user.UserInfoVo;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +30,7 @@ import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -148,7 +151,7 @@ public class SearchServiceImpl implements SearchService {
             SearchResponse<AlbumInfoIndex> response = elasticsearchClient.search(searchRequest, AlbumInfoIndex.class);
 
             //3解析es响应数据
-            return this.parseResult(response);
+            return this.parseResult(response, queryVo);
         } catch (IOException e) {
             log.error("【搜索服务】检索专辑异常：{}", e);
             throw new RuntimeException();
@@ -201,13 +204,13 @@ public class SearchServiceImpl implements SearchService {
                     String attrValueId = split[1];
                     NestedQuery nestedQuery = NestedQuery.of(
                             o -> o.path("attributeValueIndexList")
-                                .query(q -> q.bool(
-                                        b -> b.must(
-                                                m -> m.term(t -> t.field("attributeValueIndexList.attributeId").value(attrId))
-                                        ).must(
-                                                m -> m.term(t -> t.field("attributeValueIndexList.valueId").value(attrValueId))
-                                        )
-                                ))
+                                    .query(q -> q.bool(
+                                            b -> b.must(
+                                                    m -> m.term(t -> t.field("attributeValueIndexList.attributeId").value(attrId))
+                                            ).must(
+                                                    m -> m.term(t -> t.field("attributeValueIndexList.valueId").value(attrValueId))
+                                            )
+                                    ))
                     );
                     allBoolQueryBuilder.filter(nestedQuery._toQuery());
                 }
@@ -260,10 +263,40 @@ public class SearchServiceImpl implements SearchService {
      * 解析es响应结果，封装自定义结果
      *
      * @param response
+     * @param queryVo
      * @return
      */
     @Override
-    public AlbumSearchResponseVo parseResult(SearchResponse<AlbumInfoIndex> response) {
-        return null;
+    public AlbumSearchResponseVo parseResult(SearchResponse<AlbumInfoIndex> response, AlbumIndexQuery queryVo) {
+        AlbumSearchResponseVo vo = new AlbumSearchResponseVo();
+        //1 封装分页信息
+        long total = response.hits().total().value();
+        Integer pageSize = queryVo.getPageSize();
+        long totalpage = total % pageSize == 0 ? total / pageSize : total / pageSize + 1;
+        vo.setPageSize(pageSize);
+        vo.setTotal(total);
+        vo.setTotalPages(totalpage);
+        vo.setPageNo(queryVo.getPageNo());
+        //2 封装业务数据
+        List<Hit<AlbumInfoIndex>> hits = response.hits().hits();
+        if (CollectionUtil.isNotEmpty(hits)){
+            List<AlbumInfoIndexVo> albumInfoIndexVoList = hits.stream().map(hit -> {
+                //专辑对象
+                AlbumInfoIndex albumInfoIndex = hit.source();
+                //处理高亮
+                Map<String, List<String>> highlightMap = hit.highlight();
+                if (CollectionUtil.isNotEmpty(highlightMap)) {
+                    if (highlightMap.containsKey("albumTitle")) {
+                        //获取高亮关键字
+                        String albumTitle = highlightMap.get("albumTitle").get(0);
+                        albumInfoIndex.setAlbumTitle(albumTitle);
+                    }
+                }
+                return BeanUtil.copyProperties(albumInfoIndex, AlbumInfoIndexVo.class);
+            }).collect(Collectors.toList());
+
+            vo.setList(albumInfoIndexVoList);
+        }
+        return vo;
     }
 }
