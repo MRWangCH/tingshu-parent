@@ -53,8 +53,7 @@ public class SearchServiceImpl implements SearchService {
     @Autowired
     private ElasticsearchClient elasticsearchClient;
 
-    private static  final String index_name = "albuminfo";
-
+    private static final String index_name = "albuminfo";
 
 
     /**
@@ -122,6 +121,7 @@ public class SearchServiceImpl implements SearchService {
 
     /**
      * 下架专辑，该接口仅用于测试
+     *
      * @param albumId
      * @return
      */
@@ -133,6 +133,7 @@ public class SearchServiceImpl implements SearchService {
 
     /**
      * 根据关键字，分类id，属性/属性值检索专辑
+     *
      * @param queryVo
      * @return
      */
@@ -156,6 +157,7 @@ public class SearchServiceImpl implements SearchService {
 
     /**
      * 根据检索条件构建请求对象
+     *
      * @param queryVo
      * @return
      */
@@ -170,7 +172,7 @@ public class SearchServiceImpl implements SearchService {
         BoolQuery.Builder allBoolQueryBuilder = new BoolQuery.Builder();
         //2.1 设置关键字查询 采用bool查询
         //2.1.1 创建关键字查询的bool查询对象
-        if (StringUtils.hasText(keyword)){
+        if (StringUtils.hasText(keyword)) {
             BoolQuery.Builder keyWordBoolQueryBuilder = new BoolQuery.Builder();
             keyWordBoolQueryBuilder.should(s -> s.match(m -> m.field("albumTitle").query(keyword)));
             keyWordBoolQueryBuilder.should(s -> s.match(m -> m.field("albumIntro").query(keyword)));
@@ -178,9 +180,19 @@ public class SearchServiceImpl implements SearchService {
             //2.1.2 将关键字的查询对象放到最大bool查询中
             allBoolQueryBuilder.must(keyWordBoolQueryBuilder.build()._toQuery());
         }
-        //2.2 设置1，2，3 级 分类数据过滤
-
+        //2.2 设置1，2，3 级 分类数据过滤 使用filter不会对文档进行算分，并且进行缓存命中的数据
+        if (queryVo.getCategory1Id() != null) {
+            allBoolQueryBuilder.filter(f -> f.term(t -> t.field("category1Id").value(queryVo.getCategory1Id())));
+        }
+        if (queryVo.getCategory2Id() != null) {
+            allBoolQueryBuilder.filter(f -> f.term(t -> t.field("category2Id").value(queryVo.getCategory2Id())));
+        }
+        if (queryVo.getCategory3Id() != null) {
+            allBoolQueryBuilder.filter(f -> f.term(t -> t.field("category3Id").value(queryVo.getCategory3Id())));
+        }
         //2.3 设置若干项属性值过滤条件
+
+
         searchRequestBuilder.query(allBoolQueryBuilder.build()._toQuery());
 
         //3 设置分页条件
@@ -188,7 +200,7 @@ public class SearchServiceImpl implements SearchService {
         searchRequestBuilder.from(from).size(queryVo.getPageSize());
 
         //4 设置高亮关键字
-        if (StringUtils.hasText(keyword)){
+        if (StringUtils.hasText(keyword)) {
             searchRequestBuilder.highlight(h -> h.fields("albumTitle", hf -> hf.preTags("<font style = 'color:red'>").postTags("</font>")));
         }
 
@@ -196,7 +208,7 @@ public class SearchServiceImpl implements SearchService {
         if (StringUtils.hasText(queryVo.getOrder())) {
             //5.1 获取排序条件，按照冒号进行字符串分割
             String[] split = queryVo.getOrder().split(":");
-            if (split != null && split.length == 2){
+            if (split != null && split.length == 2) {
                 String orderFile = "";
                 //5.2 获取排序字段，排序方式
                 switch (split[0]) {
@@ -217,7 +229,7 @@ public class SearchServiceImpl implements SearchService {
         }
 
         //6 设置检索以及想响应es字段
-        searchRequestBuilder.source(s -> s.filter(f -> f.excludes("attributeValueIndexList", "category1Id","category2Id","category3Id")));
+        searchRequestBuilder.source(s -> s.filter(f -> f.excludes("attributeValueIndexList", "category1Id", "category2Id", "category3Id")));
 
         return searchRequestBuilder.build();
     }
@@ -225,6 +237,7 @@ public class SearchServiceImpl implements SearchService {
 
     /**
      * 解析es响应结果，封装自定义结果
+     *
      * @param response
      * @return
      */
