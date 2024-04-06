@@ -6,6 +6,7 @@ import cn.hutool.core.lang.Assert;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.NestedQuery;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import com.atguigu.tingshu.album.AlbumFeignClient;
@@ -191,7 +192,27 @@ public class SearchServiceImpl implements SearchService {
             allBoolQueryBuilder.filter(f -> f.term(t -> t.field("category3Id").value(queryVo.getCategory3Id())));
         }
         //2.3 设置若干项属性值过滤条件
-
+        List<String> attributeList = queryVo.getAttributeList();
+        if (CollectionUtil.isNotEmpty(attributeList)) {
+            for (String attribute : attributeList) {
+                String[] split = attribute.split(":");
+                if (split != null && split.length == 2) {
+                    String attrId = split[0];
+                    String attrValueId = split[1];
+                    NestedQuery nestedQuery = NestedQuery.of(
+                            o -> o.path("attributeValueIndexList")
+                                .query(q -> q.bool(
+                                        b -> b.must(
+                                                m -> m.term(t -> t.field("attributeValueIndexList.attributeId").value(attrId))
+                                        ).must(
+                                                m -> m.term(t -> t.field("attributeValueIndexList.valueId").value(attrValueId))
+                                        )
+                                ))
+                    );
+                    allBoolQueryBuilder.filter(nestedQuery._toQuery());
+                }
+            }
+        }
 
         searchRequestBuilder.query(allBoolQueryBuilder.build()._toQuery());
 
