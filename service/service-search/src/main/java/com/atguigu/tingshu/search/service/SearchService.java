@@ -6,6 +6,9 @@ import com.atguigu.tingshu.model.search.AlbumInfoIndex;
 import com.atguigu.tingshu.query.search.AlbumIndexQuery;
 import com.atguigu.tingshu.vo.search.AlbumSearchResponseVo;
 
+import java.util.List;
+import java.util.Map;
+
 public interface SearchService {
 
 
@@ -44,4 +47,11 @@ public interface SearchService {
      * @return
      */
     AlbumSearchResponseVo parseResult(SearchResponse<AlbumInfoIndex> response, AlbumIndexQuery queryVo);
+
+    /**
+     * 查询当前三级分类下最热门的6个专辑列表
+     * @param category1Id
+     * @return
+     */
+    List<Map<String, Object>> getCategory3Top6Hot(Long category1Id);
 }

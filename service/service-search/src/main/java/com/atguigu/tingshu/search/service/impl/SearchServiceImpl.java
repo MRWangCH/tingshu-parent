@@ -4,15 +4,18 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.lang.Assert;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.NestedQuery;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
+import co.elastic.clients.json.JsonData;
 import com.atguigu.tingshu.album.AlbumFeignClient;
 import com.atguigu.tingshu.model.album.AlbumAttributeValue;
 import com.atguigu.tingshu.model.album.AlbumInfo;
+import com.atguigu.tingshu.model.album.BaseCategory3;
 import com.atguigu.tingshu.model.album.BaseCategoryView;
 import com.atguigu.tingshu.model.search.AlbumInfoIndex;
 import com.atguigu.tingshu.model.search.AttributeValueIndex;
@@ -57,7 +60,7 @@ public class SearchServiceImpl implements SearchService {
     @Autowired
     private ElasticsearchClient elasticsearchClient;
 
-    private static final String index_name = "albuminfo";
+    private static final String INDEX_NAME = "albuminfo";
 
 
     /**
@@ -170,7 +173,7 @@ public class SearchServiceImpl implements SearchService {
         String keyword = queryVo.getKeyword();
         //1 创建检索请求构建器对象，指定索引库名称
         SearchRequest.Builder searchRequestBuilder = new SearchRequest.Builder();
-        searchRequestBuilder.index(index_name);
+        searchRequestBuilder.index(INDEX_NAME);
 
         //2 设置查询条件
         BoolQuery.Builder allBoolQueryBuilder = new BoolQuery.Builder();
@@ -298,5 +301,51 @@ public class SearchServiceImpl implements SearchService {
             vo.setList(albumInfoIndexVoList);
         }
         return vo;
+    }
+
+    /**
+     * 查询当前三级分类下最热门的6个专辑列表
+     * @param category1Id
+     * @return
+     */
+    @Override
+    public List<Map<String, Object>> getCategory3Top6Hot(Long category1Id) {
+        try {
+            //1 远程调用专辑服务得到入参中一级分类下包含的三级分类的列表
+            List<BaseCategory3> category3List = albumFeignClient.getTop7BaseCategory3(category1Id).getData();
+            Assert.notNull(category3List, "三级分类为空！");
+            //1.1 获取7个分类，获取7个3级分类的id
+            List<Long> category3IdList = category3List.stream().map(BaseCategory3::getId).collect(Collectors.toList());
+            //1.2 将3级分类的集合转成map
+            Map<Long, BaseCategory3> category3Map = category3List.stream().collect(Collectors.toMap(BaseCategory3::getId, baseCategory3 -> baseCategory3));
+            //1.3 将3级分类的id转成多关键字精确查询List条件对象Fieldvalue集合
+            List<FieldValue> fieldValueList = category3IdList.stream().map(category3Id -> FieldValue.of(category3Id)).collect(Collectors.toList());
+
+            //2 构建dsl语句
+            //2.1 创建检索构建器对象，指定索引库名称
+            SearchRequest.Builder searchRequestbuilder = new SearchRequest.Builder();
+            searchRequestbuilder.index(INDEX_NAME);
+            //2.2 设置查询的条件-根据7个三级分类id-多关键字精确查询
+            searchRequestbuilder.query( q -> q.terms(tq -> tq.field("category3Id").terms(t -> t.value(fieldValueList))));
+            //2.3 设置业务返回数据为0
+            searchRequestbuilder.size(0);
+            //2.4 设置三级分类的聚合，子聚合获取热度前六的专辑
+            searchRequestbuilder.aggregations("category3Agg",
+                    a -> a.terms(at -> at.field("category3Id"))
+                        .aggregations("top6", a1 -> a1.topHits(t -> t.size(6).sort(s -> s.field(f -> f.field("hotScore").order(SortOrder.Desc)))))
+            );
+
+            //3 执行结果
+            SearchRequest searchRequest = searchRequestbuilder.build();
+//            System.out.println("本次DSL检索的语句：");
+//            System.out.println(searchRequest.toString());
+            SearchResponse<AlbumInfoIndex> searchResponse = elasticsearchClient.search(searchRequest, AlbumInfoIndex.class);
+
+            //4 解析es聚合结果
+            return null;
+        } catch (Exception e) {
+            log.error("[专辑服务]热门专辑异常：{}", e);
+            throw new RuntimeException(e);
+        }
     }
 }
