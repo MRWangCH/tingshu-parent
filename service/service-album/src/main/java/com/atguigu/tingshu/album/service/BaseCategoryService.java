@@ -37,4 +37,11 @@ public interface BaseCategoryService extends IService<BaseCategory1> {
      * @return
      */
     List<BaseCategory3> getTop7BaseCategory3(Long category1Id);
+
+    /**
+     * 根据一级分类id查询当前分类包含所有二级分类以及二级分类下的三级分类列表
+     * @param category1Id
+     * @return
+     */
+    JSONObject getCategoryListByCategory1Id(Long category1Id);
 }

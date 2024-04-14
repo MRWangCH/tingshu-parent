@@ -73,5 +73,17 @@ public class BaseCategoryApiController {
 		List<BaseCategory3> list = baseCategoryService.getTop7BaseCategory3(category1Id);
 		return Result.ok(list);
 	}
+
+	/**
+	 * 根据一级分类id查询当前分类包含所有二级分类以及二级分类下的三级分类列表
+	 * @param category1Id
+	 * @return
+	 */
+	@Operation(summary = "根据一级分类id查询当前分类包含所有二级分类以及二级分类下的三级分类列表")
+	@GetMapping("/category/getBaseCategoryList/{category1Id}")
+	public Result<JSONObject> getCategoryListByCategory1Id (@PathVariable Long category1Id) {
+		JSONObject jsonObject = baseCategoryService.getCategoryListByCategory1Id(category1Id);
+		return Result.ok(jsonObject);
+	}
 }
 

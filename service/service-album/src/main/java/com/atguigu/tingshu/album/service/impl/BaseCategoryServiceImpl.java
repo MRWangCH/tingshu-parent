@@ -131,4 +131,45 @@ public class BaseCategoryServiceImpl extends ServiceImpl<BaseCategory1Mapper, Ba
 		}
 		return null;
 	}
+
+	/**
+	 * 根据一级分类id查询当前分类包含所有二级分类以及二级分类下的三级分类列表
+	 * @param category1Id
+	 * @return
+	 */
+	@Override
+	public JSONObject getCategoryListByCategory1Id(Long category1Id) {
+		//1 根据1级分类id查询到以及分类的信息
+		BaseCategory1 baseCategory1 = baseCategory1Mapper.selectById(category1Id);
+		//1.1 构建一级分类的对象
+		JSONObject jsonObject = new JSONObject();
+		jsonObject.put("categoryId", baseCategory1.getId());
+		jsonObject.put("categoryName", baseCategory1.getName());
+		//2 一级分类下的二级分类列表
+		List<BaseCategoryView> category1List = baseCategoryViewMapper.selectList(new LambdaQueryWrapper<BaseCategoryView>().eq(BaseCategoryView::getCategory1Id, category1Id));
+		if (CollectionUtil.isNotEmpty(category1List)){
+			//2.1 根据二级分类id分组得到map
+			Map<Long, List<BaseCategoryView>> category2Map = category1List.stream().collect(Collectors.groupingBy(BaseCategoryView::getCategory2Id));
+			ArrayList<JSONObject> categroy2List = new ArrayList<>();
+			for (Map.Entry<Long, List<BaseCategoryView>> entry2 : category2Map.entrySet()) {
+				Long entry2Id = entry2.getKey();
+				String category2Name = entry2.getValue().get(0).getCategory2Name();
+				JSONObject jsonObject2 = new JSONObject();
+				jsonObject2.put("categoryId", entry2Id);
+				jsonObject2.put("categoryName", category2Name);
+				categroy2List.add(jsonObject2);
+				//3 处理二级分类下三级分类列表
+				ArrayList<JSONObject> categroy3List = new ArrayList<>();
+				for (BaseCategoryView baseCategoryView : entry2.getValue()) {
+					JSONObject jsonObject3 = new JSONObject();
+					jsonObject3.put("categoryId", baseCategoryView.getCategory3Id());
+					jsonObject3.put("categoryName", baseCategoryView.getCategory3Name());
+					categroy3List.add(jsonObject3);
+				}
+				jsonObject2.put("categoryChild", categroy3List);
+			}
+			jsonObject.put("categoryChild", categroy2List);
+		}
+		return jsonObject;
+	}
 }
