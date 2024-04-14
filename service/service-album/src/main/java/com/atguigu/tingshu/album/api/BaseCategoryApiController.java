@@ -5,6 +5,7 @@ import com.atguigu.tingshu.album.service.BaseCategoryService;
 import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.model.album.BaseAttribute;
 import com.atguigu.tingshu.model.album.BaseCategory1;
+import com.atguigu.tingshu.model.album.BaseCategory3;
 import com.atguigu.tingshu.model.album.BaseCategoryView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -59,6 +60,18 @@ public class BaseCategoryApiController {
 	public Result<BaseCategoryView> getCategoryViewBy3Id(@PathVariable("category3Id") Long category3Id){
 		BaseCategoryView baseCategoryView = baseCategoryService.getCategoryViewBy3Id(category3Id);
 		return Result.ok(baseCategoryView);
+	}
+
+	/**
+	 * 根据一级分类id查询当前分类下前七个3级分类
+	 * @param category1Id
+	 * @return
+	 */
+	@Operation(summary = "根据一级分类id查询当前分类下前七个3级分类列表")
+	@GetMapping("/category/findTopBaseCategory3/{category1Id}")
+	public Result<List<BaseCategory3>> getTop7BaseCategory3(@PathVariable Long category1Id){
+		List<BaseCategory3> list = baseCategoryService.getTop7BaseCategory3(category1Id);
+		return Result.ok(list);
 	}
 }
 
