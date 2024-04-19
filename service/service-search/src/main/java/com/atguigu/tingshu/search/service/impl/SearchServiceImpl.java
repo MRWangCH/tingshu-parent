@@ -6,12 +6,15 @@ import cn.hutool.core.lang.Assert;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch._types.aggregations.Aggregate;
+import co.elastic.clients.elasticsearch._types.aggregations.LongTermsAggregate;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.NestedQuery;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.json.JsonData;
+import com.alibaba.fastjson.JSON;
 import com.atguigu.tingshu.album.AlbumFeignClient;
 import com.atguigu.tingshu.model.album.AlbumAttributeValue;
 import com.atguigu.tingshu.model.album.AlbumInfo;
@@ -32,6 +35,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -342,7 +346,29 @@ public class SearchServiceImpl implements SearchService {
             SearchResponse<AlbumInfoIndex> searchResponse = elasticsearchClient.search(searchRequest, AlbumInfoIndex.class);
 
             //4 解析es聚合结果
-            return null;
+            //4.1 获取ES响应结果中的三级分类的聚合对象
+            Aggregate category3Agg = searchResponse.aggregations().get("category3Agg");
+            LongTermsAggregate category3IdLterms = category3Agg.lterms();
+            //4.2 遍历三级分类聚合的bucket， 每遍历一次产生当前分类热门专辑map  将map收集为list
+            List<Map<String, Object>> listResult = category3IdLterms.buckets().array().stream().map(category3IdBucket -> {
+                Map<String, Object> map = new HashMap<>();
+                //4.2.1 遍历当前三级分类id内部 获取三级分类的id，
+                long category3Id = category3IdBucket.key();
+                //4.2.2 获取热门前6的子聚合 得到热门专辑表
+                List<Hit<JsonData>> top6 = category3IdBucket.aggregations().get("top6").topHits().hits().hits();
+                if (CollectionUtil.isNotEmpty(top6)) {
+                    List<AlbumInfoIndex> hotAlbumList = top6.stream().map(hit -> {
+                        //将聚合hit类型返回AlbumInfoIndex类型
+                        String sourceJsonStr = hit.source().toString();
+                        return JSON.parseObject(sourceJsonStr, AlbumInfoIndex.class);
+                    }).collect(Collectors.toList());
+                    map.put("list", hotAlbumList);
+                }
+                map.put("baseCategory3", category3Map.get(category3Id));
+                return map;
+            }).collect(Collectors.toList());
+
+            return listResult;
         } catch (Exception e) {
             log.error("[专辑服务]热门专辑异常：{}", e);
             throw new RuntimeException(e);
