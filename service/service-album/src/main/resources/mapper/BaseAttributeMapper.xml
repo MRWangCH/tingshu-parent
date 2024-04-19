@@ -18,6 +18,7 @@
                ba.category1_id,
                ba.attribute_name,
                bav.id base_attr_value_id,
+               bav.attribute_id,
                bav.value_name
         from base_attribute ba
                  inner join base_attribute_value bav on bav.attribute_id = ba.id
