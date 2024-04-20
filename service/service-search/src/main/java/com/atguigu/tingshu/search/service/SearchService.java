@@ -3,6 +3,7 @@ package com.atguigu.tingshu.search.service;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import com.atguigu.tingshu.model.search.AlbumInfoIndex;
+import com.atguigu.tingshu.model.search.SuggestIndex;
 import com.atguigu.tingshu.query.search.AlbumIndexQuery;
 import com.atguigu.tingshu.vo.search.AlbumSearchResponseVo;
 
@@ -67,4 +68,12 @@ public interface SearchService {
      * @return
      */
     List<String> completeSuggest(String keyword);
+
+    /**
+     * 解析提词响应结果
+     * @param searchResponse
+     * @param suggestName
+     * @return
+     */
+    List<String> parseSuggestResult(SearchResponse<SuggestIndex> searchResponse, String suggestName);
 }

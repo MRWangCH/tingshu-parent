@@ -14,7 +14,9 @@ import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.NestedQuery;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
+import co.elastic.clients.elasticsearch.core.search.CompletionSuggestOption;
 import co.elastic.clients.elasticsearch.core.search.Hit;
+import co.elastic.clients.elasticsearch.core.search.Suggestion;
 import co.elastic.clients.json.JsonData;
 import com.alibaba.fastjson.JSON;
 import com.atguigu.tingshu.album.AlbumFeignClient;
@@ -296,7 +298,7 @@ public class SearchServiceImpl implements SearchService {
         vo.setPageNo(queryVo.getPageNo());
         //2 封装业务数据
         List<Hit<AlbumInfoIndex>> hits = response.hits().hits();
-        if (CollectionUtil.isNotEmpty(hits)){
+        if (CollectionUtil.isNotEmpty(hits)) {
             List<AlbumInfoIndexVo> albumInfoIndexVoList = hits.stream().map(hit -> {
                 //专辑对象
                 AlbumInfoIndex albumInfoIndex = hit.source();
@@ -319,6 +321,7 @@ public class SearchServiceImpl implements SearchService {
 
     /**
      * 查询当前三级分类下最热门的6个专辑列表
+     *
      * @param category1Id
      * @return
      */
@@ -340,13 +343,13 @@ public class SearchServiceImpl implements SearchService {
             SearchRequest.Builder searchRequestbuilder = new SearchRequest.Builder();
             searchRequestbuilder.index(INDEX_NAME);
             //2.2 设置查询的条件-根据7个三级分类id-多关键字精确查询
-            searchRequestbuilder.query( q -> q.terms(tq -> tq.field("category3Id").terms(t -> t.value(fieldValueList))));
+            searchRequestbuilder.query(q -> q.terms(tq -> tq.field("category3Id").terms(t -> t.value(fieldValueList))));
             //2.3 设置业务返回数据为0
             searchRequestbuilder.size(0);
             //2.4 设置三级分类的聚合，子聚合获取热度前六的专辑
             searchRequestbuilder.aggregations("category3Agg",
                     a -> a.terms(at -> at.field("category3Id"))
-                        .aggregations("top6", a1 -> a1.topHits(t -> t.size(6).sort(s -> s.field(f -> f.field("hotScore").order(SortOrder.Desc)))))
+                            .aggregations("top6", a1 -> a1.topHits(t -> t.size(6).sort(s -> s.field(f -> f.field("hotScore").order(SortOrder.Desc)))))
             );
 
             //3 执行结果
@@ -387,6 +390,7 @@ public class SearchServiceImpl implements SearchService {
 
     /**
      * 将专辑标题存入提词索引库
+     *
      * @param albumInfoIndex
      */
     @Override
@@ -397,23 +401,24 @@ public class SearchServiceImpl implements SearchService {
         suggestIndexTitle.setId(IdUtil.fastSimpleUUID());
         suggestIndexTitle.setTitle(albumTitle);
         suggestIndexTitle.setKeyword(new Completion(new String[]{albumTitle}));
-        suggestIndexTitle.setKeywordPinyin(new Completion(new String[]{PinyinUtil.getPinyin(albumTitle,"")}));
-        suggestIndexTitle.setKeywordSequence(new Completion(new String[]{PinyinUtil.getFirstLetter(albumTitle,"")}));
+        suggestIndexTitle.setKeywordPinyin(new Completion(new String[]{PinyinUtil.getPinyin(albumTitle, "")}));
+        suggestIndexTitle.setKeywordSequence(new Completion(new String[]{PinyinUtil.getFirstLetter(albumTitle, "")}));
 
         //2 处理作者
         String announcerName = albumInfoIndex.getAnnouncerName();
         SuggestIndex suggestIndexAnnouncer = new SuggestIndex();
         suggestIndexAnnouncer.setId(IdUtil.fastSimpleUUID());
         suggestIndexAnnouncer.setTitle(announcerName);
-        suggestIndexAnnouncer.setKeyword(new Completion(new String[]{announcerName,""}));
-        suggestIndexAnnouncer.setKeywordPinyin(new Completion(new String[]{PinyinUtil.getPinyin(announcerName,"")}));
-        suggestIndexAnnouncer.setKeywordSequence(new Completion(new String[]{PinyinUtil.getFirstLetter(announcerName,"")}));
+        suggestIndexAnnouncer.setKeyword(new Completion(new String[]{announcerName, ""}));
+        suggestIndexAnnouncer.setKeywordPinyin(new Completion(new String[]{PinyinUtil.getPinyin(announcerName, "")}));
+        suggestIndexAnnouncer.setKeywordSequence(new Completion(new String[]{PinyinUtil.getFirstLetter(announcerName, "")}));
 
         suggestIndexRepository.saveAll(Arrays.asList(suggestIndexTitle, suggestIndexTitle));
     }
 
     /**
      * 关键字自动补全
+     *
      * @param keyword
      * @return
      */
@@ -426,7 +431,7 @@ public class SearchServiceImpl implements SearchService {
             //1.1 设置建议词请求参数
             searchRequestBuilder.suggest(
                     s -> s.suggesters("suggestKeyword", f -> f.prefix(keyword).completion(c -> c.field("keyword").size(10).skipDuplicates(true)))
-                        .suggesters("suggestKeywordPinyin", f -> f.prefix(keyword).completion(c -> c.field("keywordPinyin").size(10).skipDuplicates(true).fuzzy(fu -> fu.fuzziness("auto"))))
+                            .suggesters("suggestKeywordPinyin", f -> f.prefix(keyword).completion(c -> c.field("keywordPinyin").size(10).skipDuplicates(true).fuzzy(fu -> fu.fuzziness("auto"))))
                             .suggesters("suggestKeywordSequence", f -> f.prefix(keyword).completion(c -> c.field("keywordSequence").size(10).skipDuplicates(true).fuzzy(fu -> fu.fuzziness("auto"))))
 
             );
@@ -436,10 +441,55 @@ public class SearchServiceImpl implements SearchService {
             System.err.println(searchRequest.toString());
             SearchResponse<SuggestIndex> searchResponse = elasticsearchClient.search(searchRequest, SuggestIndex.class);
             //3 解析ES响应建议结果
-            return null;
+            //3.1 准备单例集合，建议词去重效果
+            HashSet<String> titleSet = new HashSet<>();
+            titleSet.addAll(this.parseSuggestResult(searchResponse, "suggestKeyword"));
+            titleSet.addAll(this.parseSuggestResult(searchResponse, "suggestKeywordPinyin"));
+            titleSet.addAll(this.parseSuggestResult(searchResponse, "suggestKeywordSequence"));
+            //3.2 判断提示词的数量如果小于10
+            if (titleSet.size() < 10) {
+                //普通检索 提词索引库 匹配查询返回结果
+                SearchResponse<SuggestIndex> response = elasticsearchClient.search(s -> s.index(SUGGEST_INDEX).query(q -> q.match(m -> m.field("title").query(keyword))), SuggestIndex.class);
+                List<Hit<SuggestIndex>> hits = response.hits().hits();
+                if (CollectionUtil.isNotEmpty(hits)) {
+                    for (Hit<SuggestIndex> hit : hits) {
+                        SuggestIndex suggestIndex = hit.source();
+                        titleSet.add(suggestIndex.getTitle());
+                        //添加后大于10
+                        if (titleSet.size() > 10) {
+                            break;
+                        }
+                    }
+                }
+            }
+            return new ArrayList<>(titleSet).subList(0, 10);
         } catch (Exception e) {
             log.error("[搜索服务]关键字自动补全出错,{}", e);
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * 解析提词响应结果
+     *
+     * @param searchResponse
+     * @param suggestName
+     * @return
+     */
+    @Override
+    public List<String> parseSuggestResult(SearchResponse<SuggestIndex> searchResponse, String suggestName) {
+        ArrayList<String> result = new ArrayList<>();
+        //1 获取所有提词结果
+        Map<String, List<Suggestion<SuggestIndex>>> suggestMap = searchResponse.suggest();
+        List<Suggestion<SuggestIndex>> suggestionList = suggestMap.get(suggestName);
+        //2 获取提词结果命中选项options
+        for (Suggestion<SuggestIndex> suggestIndexSuggestion : suggestionList) {
+            for (CompletionSuggestOption<SuggestIndex> option : suggestIndexSuggestion.completion().options()) {
+                //获取提词中的source
+                SuggestIndex suggestIndex = option.source();
+                result.add(suggestIndex.getTitle());
+            }
+        }
+        return result;
     }
 }
