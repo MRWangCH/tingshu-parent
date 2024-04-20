@@ -437,8 +437,8 @@ public class SearchServiceImpl implements SearchService {
             );
             //2 执行检索
             SearchRequest searchRequest = searchRequestBuilder.build();
-            System.out.println("提词DSL:");
-            System.err.println(searchRequest.toString());
+//            System.out.println("提词DSL:");
+//            System.err.println(searchRequest.toString());
             SearchResponse<SuggestIndex> searchResponse = elasticsearchClient.search(searchRequest, SuggestIndex.class);
             //3 解析ES响应建议结果
             //3.1 准备单例集合，建议词去重效果
