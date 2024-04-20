@@ -60,4 +60,11 @@ public interface SearchService {
      * @param albumInfoIndex
      */
     void saveSuggestDoc(AlbumInfoIndex albumInfoIndex);
+
+    /**
+     * 关键字自动补全
+     * @param keyword
+     * @return
+     */
+    List<String> completeSuggest(String keyword);
 }

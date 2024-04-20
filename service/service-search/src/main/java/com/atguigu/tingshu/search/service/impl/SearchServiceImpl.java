@@ -71,6 +71,8 @@ public class SearchServiceImpl implements SearchService {
 
     private static final String INDEX_NAME = "albuminfo";
 
+    private static final String SUGGEST_INDEX = "suggestinfo";
+
 
     /**
      * 上架专辑
@@ -408,5 +410,36 @@ public class SearchServiceImpl implements SearchService {
         suggestIndexAnnouncer.setKeywordSequence(new Completion(new String[]{PinyinUtil.getFirstLetter(announcerName,"")}));
 
         suggestIndexRepository.saveAll(Arrays.asList(suggestIndexTitle, suggestIndexTitle));
+    }
+
+    /**
+     * 关键字自动补全
+     * @param keyword
+     * @return
+     */
+    @Override
+    public List<String> completeSuggest(String keyword) {
+        try {
+            //1 构建检索对象，封装检索索引库名称
+            SearchRequest.Builder searchRequestBuilder = new SearchRequest.Builder();
+            searchRequestBuilder.index(SUGGEST_INDEX);
+            //1.1 设置建议词请求参数
+            searchRequestBuilder.suggest(
+                    s -> s.suggesters("suggestKeyword", f -> f.prefix(keyword).completion(c -> c.field("keyword").size(10).skipDuplicates(true)))
+                        .suggesters("suggestKeywordPinyin", f -> f.prefix(keyword).completion(c -> c.field("keywordPinyin").size(10).skipDuplicates(true).fuzzy(fu -> fu.fuzziness("auto"))))
+                            .suggesters("suggestKeywordSequence", f -> f.prefix(keyword).completion(c -> c.field("keywordSequence").size(10).skipDuplicates(true).fuzzy(fu -> fu.fuzziness("auto"))))
+
+            );
+            //2 执行检索
+            SearchRequest searchRequest = searchRequestBuilder.build();
+            System.out.println("提词DSL:");
+            System.err.println(searchRequest.toString());
+            SearchResponse<SuggestIndex> searchResponse = elasticsearchClient.search(searchRequest, SuggestIndex.class);
+            //3 解析ES响应建议结果
+            return null;
+        } catch (Exception e) {
+            log.error("[搜索服务]关键字自动补全出错,{}", e);
+            throw new RuntimeException(e);
+        }
     }
 }
