@@ -3,6 +3,8 @@ package com.atguigu.tingshu.search.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.lang.Assert;
+import cn.hutool.core.util.IdUtil;
+import cn.hutool.extra.pinyin.PinyinUtil;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.SortOrder;
@@ -22,8 +24,10 @@ import com.atguigu.tingshu.model.album.BaseCategory3;
 import com.atguigu.tingshu.model.album.BaseCategoryView;
 import com.atguigu.tingshu.model.search.AlbumInfoIndex;
 import com.atguigu.tingshu.model.search.AttributeValueIndex;
+import com.atguigu.tingshu.model.search.SuggestIndex;
 import com.atguigu.tingshu.query.search.AlbumIndexQuery;
 import com.atguigu.tingshu.search.repository.AlbumInfoIndexRepository;
+import com.atguigu.tingshu.search.repository.SuggestIndexRepository;
 import com.atguigu.tingshu.search.service.SearchService;
 import com.atguigu.tingshu.user.client.UserFeignClient;
 import com.atguigu.tingshu.vo.search.AlbumInfoIndexVo;
@@ -31,14 +35,12 @@ import com.atguigu.tingshu.vo.search.AlbumSearchResponseVo;
 import com.atguigu.tingshu.vo.user.UserInfoVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.elasticsearch.core.suggest.Completion;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
@@ -64,6 +66,9 @@ public class SearchServiceImpl implements SearchService {
     @Autowired
     private ElasticsearchClient elasticsearchClient;
 
+    @Autowired
+    private SuggestIndexRepository suggestIndexRepository;
+
     private static final String INDEX_NAME = "albuminfo";
 
 
@@ -81,7 +86,7 @@ public class SearchServiceImpl implements SearchService {
         //2 远程调用专辑服务获取专辑以及专辑属性列表信息，为索引库文档对象中的相关属性赋值
         CompletableFuture<AlbumInfo> albumInfoCompletableFuture = CompletableFuture.supplyAsync(() -> {
             AlbumInfo albumInfo = albumFeignClient.getAlbumInfo(albumId).getData();
-            Assert.notNull(albumInfo, "专辑信息为空！");
+//            Assert.notNull(albumInfo, "专辑信息为空！");
             BeanUtil.copyProperties(albumInfo, albumInfoIndex);
             //2.2 处理专辑属性值列表
             List<AlbumAttributeValue> albumAttributeValueVoList = albumInfo.getAlbumAttributeValueVoList();
@@ -99,14 +104,14 @@ public class SearchServiceImpl implements SearchService {
         //3 远程调用用户服务获取用户信息，为索引库文档对象中的相关属性赋值
         CompletableFuture<Void> userInfoComplatableFuture = albumInfoCompletableFuture.thenAcceptAsync(albumInfo -> {
             UserInfoVo userInfo = userFeignClient.getUserInfoVoByUserId(albumInfo.getUserId()).getData();
-            Assert.notNull(userInfo, "主播信息不存在！");
+//            Assert.notNull(userInfo, "主播信息不存在！");
             albumInfoIndex.setAnnouncerName(userInfo.getNickname());
         }, threadPoolExecutor);
 
         //4 远程调用专辑服务获取分类信息
         CompletableFuture<Void> categoryComplatableFuture = albumInfoCompletableFuture.thenAcceptAsync(albumInfo -> {
             BaseCategoryView categoryView = albumFeignClient.getCategoryViewBy3Id(albumInfo.getCategory3Id()).getData();
-            Assert.notNull(categoryView, "分类信息不存在！");
+//            Assert.notNull(categoryView, "分类信息不存在！");
             albumInfoIndex.setCategory1Id(categoryView.getCategory1Id());
             albumInfoIndex.setCategory2Id(categoryView.getCategory2Id());
         }, threadPoolExecutor);
@@ -128,6 +133,9 @@ public class SearchServiceImpl implements SearchService {
         albumInfoIndex.setHotScore(hotScore);
         //5 调用持久层新增文档
         albumInfoIndexRepository.save(albumInfoIndex);
+
+        //6 将上架专辑 专辑标题、名称存入提词索引库
+        this.saveSuggestDoc(albumInfoIndex);
     }
 
     /**
@@ -373,5 +381,32 @@ public class SearchServiceImpl implements SearchService {
             log.error("[专辑服务]热门专辑异常：{}", e);
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * 将专辑标题存入提词索引库
+     * @param albumInfoIndex
+     */
+    @Override
+    public void saveSuggestDoc(AlbumInfoIndex albumInfoIndex) {
+        //1 处理专辑标题
+        String albumTitle = albumInfoIndex.getAlbumTitle();
+        SuggestIndex suggestIndexTitle = new SuggestIndex();
+        suggestIndexTitle.setId(IdUtil.fastSimpleUUID());
+        suggestIndexTitle.setTitle(albumTitle);
+        suggestIndexTitle.setKeyword(new Completion(new String[]{albumTitle}));
+        suggestIndexTitle.setKeywordPinyin(new Completion(new String[]{PinyinUtil.getPinyin(albumTitle,"")}));
+        suggestIndexTitle.setKeywordSequence(new Completion(new String[]{PinyinUtil.getFirstLetter(albumTitle,"")}));
+
+        //2 处理作者
+        String announcerName = albumInfoIndex.getAnnouncerName();
+        SuggestIndex suggestIndexAnnouncer = new SuggestIndex();
+        suggestIndexAnnouncer.setId(IdUtil.fastSimpleUUID());
+        suggestIndexAnnouncer.setTitle(announcerName);
+        suggestIndexAnnouncer.setKeyword(new Completion(new String[]{announcerName,""}));
+        suggestIndexAnnouncer.setKeywordPinyin(new Completion(new String[]{PinyinUtil.getPinyin(announcerName,"")}));
+        suggestIndexAnnouncer.setKeywordSequence(new Completion(new String[]{PinyinUtil.getFirstLetter(announcerName,"")}));
+
+        suggestIndexRepository.saveAll(Arrays.asList(suggestIndexTitle, suggestIndexTitle));
     }
 }

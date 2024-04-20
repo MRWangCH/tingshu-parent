@@ -54,4 +54,10 @@ public interface SearchService {
      * @return
      */
     List<Map<String, Object>> getCategory3Top6Hot(Long category1Id);
+
+    /**
+     * 将专辑标题存入提词索引库
+     * @param albumInfoIndex
+     */
+    void saveSuggestDoc(AlbumInfoIndex albumInfoIndex);
 }
