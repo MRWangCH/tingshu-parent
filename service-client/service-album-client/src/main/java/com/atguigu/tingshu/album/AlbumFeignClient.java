@@ -5,6 +5,7 @@ import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.model.album.AlbumInfo;
 import com.atguigu.tingshu.model.album.BaseCategory3;
 import com.atguigu.tingshu.model.album.BaseCategoryView;
+import com.atguigu.tingshu.vo.album.AlbumStatVo;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -44,4 +45,12 @@ public interface AlbumFeignClient {
      */
     @GetMapping("/category/findTopBaseCategory3/{category1Id}")
     public Result<List<BaseCategory3>> getTop7BaseCategory3(@PathVariable Long category1Id);
+
+    /**
+     * 根据专辑ID获取专辑统计信息
+     * @param albumId
+     * @return
+     */
+    @GetMapping("/albumInfo/getAlbumStatVo/{albumId}")
+    public Result<AlbumStatVo> getAlbumStatVo(@PathVariable Long albumId);
 }
