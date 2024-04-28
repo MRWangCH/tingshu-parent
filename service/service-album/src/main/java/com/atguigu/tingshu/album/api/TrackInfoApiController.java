@@ -6,6 +6,7 @@ import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.common.util.AuthContextHolder;
 import com.atguigu.tingshu.model.album.TrackInfo;
 import com.atguigu.tingshu.query.album.TrackInfoQuery;
+import com.atguigu.tingshu.vo.album.AlbumTrackListVo;
 import com.atguigu.tingshu.vo.album.TrackInfoVo;
 import com.atguigu.tingshu.vo.album.TrackListVo;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -114,6 +115,26 @@ public class TrackInfoApiController {
 		trackInfoService.removeTrackInfo(id);
 		return Result.ok();
 	}
+
+	/**
+	 * 查询专辑声音列表
+	 * @param albumId
+	 * @param page
+	 * @param limit
+	 * @return
+	 */
+	@Operation(summary = "查询当前登录专辑声音列表")
+	@GuiGuLogin(required = false)
+	@GetMapping("/trackInfo/findAlbumTrackPage/{albumId}/{page}/{limit}")
+	public Result<Page<AlbumTrackListVo>> getUserAlbumTrackPage(@PathVariable("albumId") Long albumId, @PathVariable("page") Integer page, @PathVariable("limit") Integer limit) {
+		//1 获取用户id 可能有也可能没有
+		Long userId = AuthContextHolder.getUserId();
+		//2 构建mybatisplus分页对象
+		Page<AlbumTrackListVo> pageInfo = new Page<>(page, limit);
+		pageInfo = trackInfoService.getUserAlbumTrackPage(pageInfo, userId, albumId);
+		return Result.ok(pageInfo);
+	}
+
 
 }
 
