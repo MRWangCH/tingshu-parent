@@ -219,7 +219,11 @@ public class TrackInfoServiceImpl extends ServiceImpl<TrackInfoMapper, TrackInfo
 	public Page<AlbumTrackListVo> getUserAlbumTrackPage(Page<AlbumTrackListVo> pageInfo, Long userId, Long albumId) {
 		//1 根据专辑id分页查询声音列表-包含声音统计信息
 		pageInfo = trackInfoMapper.getUserAlbumTrackPage(pageInfo, albumId);
-		//2 对当前声音付费标识业务处理
+
+		// TODO 2 对当前声音付费标识业务处理
+		pageInfo.getRecords().stream().forEach(albumTrackListVo -> {
+			albumTrackListVo.setIsShowPaidMark(true);
+		});
 		return pageInfo;
 	}
 }
