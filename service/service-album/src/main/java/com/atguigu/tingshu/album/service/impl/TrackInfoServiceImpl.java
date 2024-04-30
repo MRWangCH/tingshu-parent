@@ -269,15 +269,17 @@ public class TrackInfoServiceImpl extends ServiceImpl<TrackInfoMapper, TrackInfo
 			//5 统一处理需要购买情况，如果未购买专辑或者声音，将声音付费标识设置为true
 			if (isPaid) {
 				//5.1 得到当前页中声音列表id
-				List<Long> trackIdList = trackList.stream().filter(trackInfo -> {
+				List<AlbumTrackListVo> trackListVoList = trackList.stream().filter(trackInfo -> {
 					//将试听的过滤掉
 					return trackInfo.getOrderNum() > albumInfo.getTracksForFree();
-				}).collect(Collectors.toList()).stream().map(AlbumTrackListVo::getTrackId).collect(Collectors.toList());
+				}).collect(Collectors.toList());
+
+				List<Long> trackIdList = trackListVoList.stream().map(AlbumTrackListVo::getTrackId).collect(Collectors.toList());
 
 				//5.2 远程调用用户微服务查询当前页中声音列表购买情况Map
 				Map<Long, Integer> buyStatusMap = userFeignClient.userIsPaidTrackList(userId, albumId, trackIdList).getData();
 				//5.3 当前页中声音未购买 将指定声音付费标识设置为true
-				for (AlbumTrackListVo albumTrackListVo : trackList) {
+				for (AlbumTrackListVo albumTrackListVo : trackListVoList) {
 					//获取声音购买结果
 					Integer isBuy = buyStatusMap.get(albumTrackListVo.getTrackId());
 					if (isBuy == 0) {
