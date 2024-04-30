@@ -13,10 +13,12 @@ import com.atguigu.tingshu.model.album.AlbumInfo;
 import com.atguigu.tingshu.model.album.TrackInfo;
 import com.atguigu.tingshu.model.album.TrackStat;
 import com.atguigu.tingshu.query.album.TrackInfoQuery;
+import com.atguigu.tingshu.user.client.UserFeignClient;
 import com.atguigu.tingshu.vo.album.AlbumTrackListVo;
 import com.atguigu.tingshu.vo.album.TrackInfoVo;
 import com.atguigu.tingshu.vo.album.TrackListVo;
 import com.atguigu.tingshu.vo.album.TrackMediaInfoVo;
+import com.atguigu.tingshu.vo.user.UserInfoVo;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -31,8 +33,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -53,6 +58,9 @@ public class TrackInfoServiceImpl extends ServiceImpl<TrackInfoMapper, TrackInfo
 
 	@Autowired
 	private TrackStatMapper trackStatMapper;
+
+	@Autowired
+	private UserFeignClient userFeignClient;
 
 	/***
 	 * 上传声音文件到腾讯云点播平台
@@ -219,11 +227,66 @@ public class TrackInfoServiceImpl extends ServiceImpl<TrackInfoMapper, TrackInfo
 	public Page<AlbumTrackListVo> getUserAlbumTrackPage(Page<AlbumTrackListVo> pageInfo, Long userId, Long albumId) {
 		//1 根据专辑id分页查询声音列表-包含声音统计信息
 		pageInfo = trackInfoMapper.getUserAlbumTrackPage(pageInfo, albumId);
+		List<AlbumTrackListVo> trackList = pageInfo.getRecords();
+		//对当前声音付费标识业务处理 找出声音需要付费的情况处理
+		//2 根据专辑id查询专辑信息 得到专辑付费类型以及专辑免费试听集数（VIP免费，付费）
+		AlbumInfo albumInfo = albumInfoMapper.selectById(albumId);
+		//2.1 获取专辑付费类型: 0101-免费、0102-vip免费、0103-付费
+		String payType = albumInfo.getPayType();
 
-		// TODO 2 对当前声音付费标识业务处理
-		pageInfo.getRecords().stream().forEach(albumTrackListVo -> {
-			albumTrackListVo.setIsShowPaidMark(true);
-		});
+		//3 用户未登录
+		if (userId == null) {
+			// 专辑付费类型为vip免费或者付费
+			if (!SystemConstant.ALBUM_PAY_TYPE_FREE.equals(payType)) {
+				//将当前页中声音列表获取到，找出非试听的声音列表，为非试听声音设置付费标识
+				trackList.stream().filter(trackInfo -> {
+					return trackInfo.getOrderNum() > albumInfo.getTracksForFree();
+				}).collect(Collectors.toList()).stream().forEach(trackInfo -> {
+					//非试听设置付费标识为true
+					trackInfo.setIsShowPaidMark(true);
+				});
+			}
+		} else {
+			//4 用户已登录 登录用户为普通用户或者vip过期 未购买专辑或者部分声音付费标识设置为true；付费的专辑未购买声音，将声音付费标识设置为true
+			//4.1 远程调用用户微服务获取用户是否为vip
+			UserInfoVo userInfo = userFeignClient.getUserInfoVoByUserId(userId).getData();
+			//声明变量是否需要购买
+			Boolean isPaid = false;
+			if (SystemConstant.ALBUM_PAY_TYPE_VIPFREE.equals(payType)) {
+				//vip免费 --> 普通用户或者过期 查看用户是否购买过专辑或者声音
+				if (userInfo.getIsVip().intValue() == 0) {
+					//普通用户
+					isPaid = true;
+				}
+				if (userInfo.getIsVip().intValue() == 1 && userInfo.getVipExpireTime().before(new Date())) {
+					//vip会员过期，会员到期时间在当前时间之前， 会有延迟任务更新会员过期时间
+					isPaid = true;
+				}
+			} else if (SystemConstant.ALBUM_PAY_TYPE_REQUIRE.equals(payType)) {
+				//必须购买 --> 普通用户或者vip查看用户是否购买过专辑或者声音
+				isPaid = true;
+			}
+			//5 统一处理需要购买情况，如果未购买专辑或者声音，将声音付费标识设置为true
+			if (isPaid) {
+				//5.1 得到当前页中声音列表id
+				List<Long> trackIdList = trackList.stream().filter(trackInfo -> {
+					//将试听的过滤掉
+					return trackInfo.getOrderNum() > albumInfo.getTracksForFree();
+				}).collect(Collectors.toList()).stream().map(AlbumTrackListVo::getTrackId).collect(Collectors.toList());
+
+				//5.2 远程调用用户微服务查询当前页中声音列表购买情况Map
+				Map<Long, Integer> buyStatusMap = userFeignClient.userIsPaidTrackList(userId, albumId, trackIdList).getData();
+				//5.3 当前页中声音未购买 将指定声音付费标识设置为true
+				for (AlbumTrackListVo albumTrackListVo : trackList) {
+					//获取声音购买结果
+					Integer isBuy = buyStatusMap.get(albumTrackListVo.getTrackId());
+					if (isBuy == 0) {
+						//当前用户未购买该专辑或者声音
+						albumTrackListVo.setIsShowPaidMark(true);
+					}
+				}
+			}
+		}
 		return pageInfo;
 	}
 }
