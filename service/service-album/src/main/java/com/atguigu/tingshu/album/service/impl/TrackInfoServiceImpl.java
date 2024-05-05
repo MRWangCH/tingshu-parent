@@ -3,6 +3,7 @@ package com.atguigu.tingshu.album.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import com.atguigu.tingshu.album.config.VodConstantProperties;
 import com.atguigu.tingshu.album.mapper.AlbumInfoMapper;
+import com.atguigu.tingshu.album.mapper.AlbumStatMapper;
 import com.atguigu.tingshu.album.mapper.TrackInfoMapper;
 import com.atguigu.tingshu.album.mapper.TrackStatMapper;
 import com.atguigu.tingshu.album.service.TrackInfoService;
@@ -10,6 +11,7 @@ import com.atguigu.tingshu.album.service.VodService;
 import com.atguigu.tingshu.common.constant.SystemConstant;
 import com.atguigu.tingshu.common.util.UploadFileUtil;
 import com.atguigu.tingshu.model.album.AlbumInfo;
+import com.atguigu.tingshu.model.album.AlbumStat;
 import com.atguigu.tingshu.model.album.TrackInfo;
 import com.atguigu.tingshu.model.album.TrackStat;
 import com.atguigu.tingshu.query.album.TrackInfoQuery;
@@ -33,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.security.PrivateKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -61,6 +64,9 @@ public class TrackInfoServiceImpl extends ServiceImpl<TrackInfoMapper, TrackInfo
 
 	@Autowired
 	private UserFeignClient userFeignClient;
+
+	@Autowired
+	private AlbumStatMapper albumStatMapper;
 
 	/***
 	 * 上传声音文件到腾讯云点播平台
@@ -291,4 +297,26 @@ public class TrackInfoServiceImpl extends ServiceImpl<TrackInfoMapper, TrackInfo
 		}
 		return pageInfo;
 	}
+
+
+	/**
+	 * 消息队列Kafka更新专辑声音统计信息
+	 * @param albumId 专辑id
+	 * @param trackId 声音id
+	 * @param statType 统计类型
+	 * @param count 数量
+	 */
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+    public void updateStat(Long albumId, Long trackId, String statType, Integer count) {
+        //1 更新声音统计信息
+        trackStatMapper.updateStat(trackId, statType, count);
+        //2 更新专辑统计信息（如果是声音的播放量或者是声音评论量同步修改专辑统计信息）
+        if (SystemConstant.TRACK_STAT_PLAY.equals(statType) ) {
+            albumStatMapper.updateStat(albumId, SystemConstant.ALBUM_STAT_PLAY, count);
+        }
+        if (SystemConstant.TRACK_STAT_COMMENT.equals(statType)) {
+            albumStatMapper.updateStat(albumId, SystemConstant.ALBUM_STAT_COMMENT, count);
+        }
+    }
 }

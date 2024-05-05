@@ -66,4 +66,13 @@ public interface TrackInfoService extends IService<TrackInfo> {
      * @return
      */
     Page<AlbumTrackListVo> getUserAlbumTrackPage(Page<AlbumTrackListVo> pageInfo, Long userId, Long albumId);
+
+    /**
+     * 消息队列Kafka更新专辑声音统计信息
+     * @param albumId
+     * @param trackId
+     * @param statType
+     * @param count
+     */
+    void updateStat(Long albumId, Long trackId, String statType, Integer count);
 }
