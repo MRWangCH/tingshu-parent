@@ -4,13 +4,11 @@ import com.atguigu.tingshu.common.login.GuiGuLogin;
 import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.common.util.AuthContextHolder;
 import com.atguigu.tingshu.user.service.UserListenProcessService;
+import com.atguigu.tingshu.vo.user.UserListenProcessVo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 
@@ -35,6 +33,19 @@ public class UserListenProcessApiController {
 		Long userId = AuthContextHolder.getUserId();
 		BigDecimal breakSecond = userListenProcessService.getTrackBreakSecond(userId, trackId);
 		return Result.ok(breakSecond);
+	}
+
+	/**
+	 * 更新声音播放进度
+	 * @param userListenProcessVo
+	 * @return
+	 */
+	@GuiGuLogin
+	@Operation(summary = "更新声音播放进度")
+	@PostMapping("/userListenProcess/updateListenProcess")
+	public Result updateListenProcess(@RequestBody UserListenProcessVo userListenProcessVo) {
+		userListenProcessService.updateListenProcess(userListenProcessVo);
+		return Result.ok();
 	}
 }
 

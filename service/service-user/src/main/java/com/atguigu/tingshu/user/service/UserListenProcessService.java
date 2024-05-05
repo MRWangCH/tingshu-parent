@@ -1,5 +1,7 @@
 package com.atguigu.tingshu.user.service;
 
+import com.atguigu.tingshu.vo.user.UserListenProcessVo;
+
 import java.math.BigDecimal;
 
 public interface UserListenProcessService {
@@ -10,4 +12,11 @@ public interface UserListenProcessService {
      * @return
      */
     BigDecimal getTrackBreakSecond(Long userId, Long trackId);
+
+    /**
+     * 更新声音播放进度
+     * @param userListenProcessVo
+     * @return
+     */
+    void updateListenProcess(UserListenProcessVo userListenProcessVo);
 }
