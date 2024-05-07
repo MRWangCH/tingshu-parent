@@ -1,8 +1,10 @@
 package com.atguigu.tingshu.user.service;
 
+import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.vo.user.UserListenProcessVo;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 public interface UserListenProcessService {
 
@@ -19,4 +21,10 @@ public interface UserListenProcessService {
      * @return
      */
     void updateListenProcess(UserListenProcessVo userListenProcessVo);
+
+    /**
+     * 获取登录用户上次播放专辑声音进度
+     * @return
+     */
+    Map<String, Long> getLatelyTrack(Long userId);
 }

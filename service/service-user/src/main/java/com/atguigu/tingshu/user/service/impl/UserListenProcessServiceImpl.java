@@ -6,6 +6,7 @@ import com.alibaba.fastjson.JSON;
 import com.atguigu.tingshu.common.constant.KafkaConstant;
 import com.atguigu.tingshu.common.constant.RedisConstant;
 import com.atguigu.tingshu.common.constant.SystemConstant;
+import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.common.service.KafkaService;
 import com.atguigu.tingshu.common.util.AuthContextHolder;
 import com.atguigu.tingshu.common.util.MongoUtil;
@@ -14,6 +15,7 @@ import com.atguigu.tingshu.user.service.UserListenProcessService;
 import com.atguigu.tingshu.vo.album.TrackStatMqVo;
 import com.atguigu.tingshu.vo.user.UserListenProcessVo;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -22,6 +24,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -102,5 +106,28 @@ public class UserListenProcessServiceImpl implements UserListenProcessService {
             mqVo.setCount(1);
             kafkaService.sendMessage(KafkaConstant.QUEUE_TRACK_STAT_UPDATE, JSON.toJSONString(mqVo));
         }
+    }
+
+    /**
+     * 获取登录用户上次播放专辑声音进度
+     * @return
+     */
+    @Override
+    public Map<String, Long> getLatelyTrack(Long userId) {
+        //1 根据用户id查询播放进度集合按照更新时间倒序，获取第一条记录
+        //1.1 构建查询条件，封装查询条件
+        Query query = new Query();
+        query.addCriteria(Criteria.where("userId").is(userId));
+        //1.2 更新时间排序只获取第一条记录
+        query.with(Sort.by(Sort.Direction.DESC, "updateTime"));
+        query.limit(1);
+        UserListenProcess userListenProcess = mongoTemplate.findOne(query, UserListenProcess.class, MongoUtil.getCollectionName(MongoUtil.MongoCollectionEnum.USER_LISTEN_PROCESS, userId));
+        if (userListenProcess != null) {
+            Map<String, Long> hashMap = new HashMap<>();
+            hashMap.put("trackId", userListenProcess.getTrackId());
+            hashMap.put("albumId", userListenProcess.getAlbumId());
+            return hashMap;
+        }
+        return null;
     }
 }
