@@ -541,4 +541,18 @@ public class SearchServiceImpl implements SearchService {
             throw new RuntimeException(e);
         }
     }
+
+
+    /**
+     * 获取reids中不同分类专辑排行榜
+     * @param category1Id
+     * @param dimension
+     * @return
+     */
+    @Override
+    public List<AlbumInfoIndex> getRankingList(Long category1Id, String dimension) {
+        String rankingKey = RedisConstant.RANKING_KEY_PREFIX + category1Id;
+        List<AlbumInfoIndex> list = (List<AlbumInfoIndex>) redisTemplate.opsForHash().get(rankingKey, dimension);
+        return list;
+    }
 }

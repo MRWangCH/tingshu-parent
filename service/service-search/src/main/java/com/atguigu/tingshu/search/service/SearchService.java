@@ -82,4 +82,12 @@ public interface SearchService {
      * @return
      */
     void updateLatelyAlbumRanking();
+
+    /**
+     * 获取reids中不同分类专辑排行榜
+     * @param category1Id
+     * @param dimension
+     * @return
+     */
+    List<AlbumInfoIndex> getRankingList(Long category1Id, String dimension);
 }
