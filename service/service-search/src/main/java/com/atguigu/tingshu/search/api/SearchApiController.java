@@ -80,5 +80,16 @@ public class SearchApiController {
         List<String> list = searchService.completeSuggest(keyword);
         return Result.ok(list);
     }
+
+    /**
+     * 更新所有分类下排行榜-手动调用，后续改为定时任务，分布式任务调度框架
+     * @return
+     */
+    @Operation(summary = "更新所有分类下排行榜-手动调用")
+    @GetMapping("/albumInfo/updateLatelyAlbumRanking")
+    public Result updateLatelyAlbumRanking() {
+        searchService.updateLatelyAlbumRanking();
+        return Result.ok();
+    }
 }
 

@@ -76,4 +76,10 @@ public interface SearchService {
      * @return
      */
     List<String> parseSuggestResult(SearchResponse<SuggestIndex> searchResponse, String suggestName);
+
+    /**
+     * 更新所有分类下排行榜，从es中获取不同分类下不同排行列表，存入到redis的hash结构中
+     * @return
+     */
+    void updateLatelyAlbumRanking();
 }

@@ -20,10 +20,8 @@ import co.elastic.clients.elasticsearch.core.search.Suggestion;
 import co.elastic.clients.json.JsonData;
 import com.alibaba.fastjson.JSON;
 import com.atguigu.tingshu.album.AlbumFeignClient;
-import com.atguigu.tingshu.model.album.AlbumAttributeValue;
-import com.atguigu.tingshu.model.album.AlbumInfo;
-import com.atguigu.tingshu.model.album.BaseCategory3;
-import com.atguigu.tingshu.model.album.BaseCategoryView;
+import com.atguigu.tingshu.common.constant.RedisConstant;
+import com.atguigu.tingshu.model.album.*;
 import com.atguigu.tingshu.model.search.AlbumInfoIndex;
 import com.atguigu.tingshu.model.search.AttributeValueIndex;
 import com.atguigu.tingshu.model.search.SuggestIndex;
@@ -38,11 +36,14 @@ import com.atguigu.tingshu.vo.user.UserInfoVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.elasticsearch.core.suggest.Completion;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.awt.*;
 import java.io.IOException;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
@@ -70,6 +71,9 @@ public class SearchServiceImpl implements SearchService {
 
     @Autowired
     private SuggestIndexRepository suggestIndexRepository;
+
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     private static final String INDEX_NAME = "albuminfo";
 
@@ -491,5 +495,50 @@ public class SearchServiceImpl implements SearchService {
             }
         }
         return result;
+    }
+
+    /**
+     * 更新所有分类下排行榜，从es中获取不同分类下不同排行列表，存入到redis的hash结构中
+     * @return
+     */
+    @Override
+    public void updateLatelyAlbumRanking() {
+        try {
+            //1 远程调用专辑服务获取一级分类列表
+            List<BaseCategory1> category1List = albumFeignClient.findAllCategory1().getData();
+            Assert.notNull(category1List,"一级分类列表为空");
+            List<Long> category1IdList = category1List.stream().map(BaseCategory1::getId).collect(Collectors.toList());
+            //2 循环一级分类列表，根据以及分类id，以及当前分类下固定的5种排序方式查询es中的专辑列表，将不同数据存入redis
+            for (Long category1Id : category1IdList) {
+                //2.0 声明当前分类hash结构的key
+                String rankingKey = RedisConstant.RANKING_KEY_PREFIX + category1Id;
+                //2.1 构建排序字段数组 热度，播放量，订阅量，购买量，评论量
+                String[] rankingDimensionArray = new String[] {"hotScore", "playStatNum", "subscribeStatNum", "buyStatNum", "commentStatNum"};
+                //2.2 循环排序字段的数组-发起ES检索请求
+                for (String dimension : rankingDimensionArray) {
+                    SearchResponse<AlbumInfoIndex> searchResponse = elasticsearchClient.search(
+                            s -> s.index(INDEX_NAME)
+                                    .query(q -> q.term(t -> t.field("category1Id").value(category1Id)))
+                                    .sort(sort -> sort.field(f -> f.field(dimension).order(SortOrder.Desc)))
+                                    .source(source -> source.filter(f -> f.excludes(
+                                            "attributeValueIndexList",
+                                            "hotScore",
+                                            "category1Id",
+                                            "category2Id",
+                                            "category3Id")))
+                            , AlbumInfoIndex.class);
+                    //2.3 解析ES命中的不同排行榜的数据，将数据存入到redis的hash机构中
+                    List<Hit<AlbumInfoIndex>> hits = searchResponse.hits().hits();
+                    if (CollectionUtil.isNotEmpty(hits)) {
+                        List<AlbumInfoIndex> albumInfoIndexList = hits.stream().map(hit -> hit.source()).collect(Collectors.toList());
+                        //2.4 将数据存入到redis的hash机构中
+                        redisTemplate.opsForHash().put(rankingKey, dimension, albumInfoIndexList);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("[专辑]热门排行检索异常：{}", e);
+            throw new RuntimeException(e);
+        }
     }
 }
