@@ -5,6 +5,7 @@ import com.atguigu.tingshu.query.album.TrackInfoQuery;
 import com.atguigu.tingshu.vo.album.AlbumTrackListVo;
 import com.atguigu.tingshu.vo.album.TrackInfoVo;
 import com.atguigu.tingshu.vo.album.TrackListVo;
+import com.atguigu.tingshu.vo.album.TrackStatVo;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.apache.ibatis.annotations.Param;
@@ -75,4 +76,11 @@ public interface TrackInfoService extends IService<TrackInfo> {
      * @param count
      */
     void updateStat(Long albumId, Long trackId, String statType, Integer count);
+
+    /**
+     * 根据声音id查询声音统计信息
+     * @param trackId
+     * @return
+     */
+    TrackStatVo getTrackStatVo(Long trackId);
 }

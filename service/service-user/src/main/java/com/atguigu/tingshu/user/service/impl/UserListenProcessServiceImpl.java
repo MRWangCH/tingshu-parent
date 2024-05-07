@@ -55,7 +55,7 @@ public class UserListenProcessServiceImpl implements UserListenProcessService {
         if (userListenProcess != null) {
             return userListenProcess.getBreakSecond();
         }
-        return null;
+        return new BigDecimal("0.00");
     }
 
     /**
