@@ -85,5 +85,15 @@ public class BaseCategoryApiController {
 		JSONObject jsonObject = baseCategoryService.getCategoryListByCategory1Id(category1Id);
 		return Result.ok(jsonObject);
 	}
+
+	/**
+	 * 查询所有一级分类列表
+	 * @return
+	 */
+	@Operation(summary = "查询所有一级分类列表")
+	@GetMapping("/category/findAllCategory1")
+	public Result<List<BaseCategory1>> findAllCategory1() {
+		return Result.ok(baseCategoryService.list());
+	}
 }
 
