@@ -2,12 +2,15 @@ package com.atguigu.tingshu.album.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
+import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.RandomUtil;
 import com.atguigu.tingshu.album.mapper.AlbumAttributeValueMapper;
 import com.atguigu.tingshu.album.mapper.AlbumInfoMapper;
 import com.atguigu.tingshu.album.mapper.AlbumStatMapper;
 import com.atguigu.tingshu.album.mapper.TrackInfoMapper;
 import com.atguigu.tingshu.album.service.AlbumInfoService;
 import com.atguigu.tingshu.common.constant.KafkaConstant;
+import com.atguigu.tingshu.common.constant.RedisConstant;
 import com.atguigu.tingshu.common.constant.SystemConstant;
 import com.atguigu.tingshu.common.service.KafkaService;
 import com.atguigu.tingshu.model.album.AlbumAttributeValue;
@@ -24,10 +27,15 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -48,6 +56,9 @@ public class AlbumInfoServiceImpl extends ServiceImpl<AlbumInfoMapper, AlbumInfo
 
 	@Autowired
 	private KafkaService kafkaService;
+
+	@Autowired
+	private RedisTemplate redisTemplate;
 
 	/**
 	 * 新增专辑
@@ -153,12 +164,76 @@ public class AlbumInfoServiceImpl extends ServiceImpl<AlbumInfoMapper, AlbumInfo
 	}
 
 	/**
+	 * 优先从缓存中获取
 	 * 修改时根据专辑id查询数据的回写
 	 * @param id
 	 * @return
 	 */
 	@Override
 	public AlbumInfo getAlbumInfo(Long id) {
+		try {
+			//1 优先从缓存中获取数据
+			//1.1 构建业务数据的key
+			String dataKey = RedisConstant.ALBUM_INFO_PREFIX + String.valueOf(id);
+			//1.2 查询redis
+			AlbumInfo albumInfo = (AlbumInfo) redisTemplate.opsForValue().get(dataKey);
+			//1.3 命中缓存返回，未命中执行第二步
+			if (albumInfo != null) {
+				return albumInfo;
+			}
+			//2 获取分布式锁
+			//2.1 构建锁的Key
+			String lockKey = RedisConstant.ALBUM_LOCK_PREFIX + id + RedisConstant.CACHE_LOCK_SUFFIX;
+			//2.2 产生锁的值：锁标识uuid
+			String lockValue = IdUtil.fastSimpleUUID();
+			//2.3 尝试获取锁，利用set ex nx 实现分布式锁
+			Boolean flag = redisTemplate.opsForValue().setIfAbsent(lockKey, lockValue, RedisConstant.ALBUM_LOCK_EXPIRE_PX2, TimeUnit.SECONDS);
+			//2.4 获取成功执行业务
+			if (flag) {
+				try {
+					//3 执行业务，将查询结果放入缓存
+					albumInfo = this.getAlbumInfoFromDB(id);
+					//3.1 查询为空，将空数据加入缓存中，设置过期时间10分钟
+					if (albumInfo == null) {
+						redisTemplate.opsForValue().set(dataKey, albumInfo, RedisConstant.ALBUM_TEMPORARY_TIMEOUT, TimeUnit.SECONDS);
+						return albumInfo;
+					}
+					//3.1 查询为空，将空数据加入缓存中，设置过期时间10分钟
+					int ttl = RandomUtil.randomInt(500, 3600);
+					redisTemplate.opsForValue().set(dataKey, albumInfo, RedisConstant.ALBUM_TIMEOUT + ttl, TimeUnit.SECONDS);
+					return albumInfo;
+				} finally {
+					//4 释放锁 采用lua脚本释放锁
+					String text = "if redis.call(\"get\",KEYS[1]) == ARGV[1]\n" +
+							"then\n" +
+							"    return redis.call(\"del\",KEYS[1])\n" +
+							"else\n" +
+							"    return 0\n" +
+							"end";
+					DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
+					redisScript.setScriptText(text);
+					redisScript.setResultType(Long.class);
+					redisTemplate.execute(redisScript, Arrays.asList(lockKey), lockValue);
+				}
+			} else {
+				//2.5 获取失败-自旋
+				Thread.sleep(200);
+				return this.getAlbumInfo(id);
+			}
+		} catch (Exception e) {
+			log.error("【专辑服务】获取专辑异常：{}", e);
+			//出现异常，查询数据库
+			return this.getAlbumInfoFromDB(id);
+		}
+	}
+
+	/**
+	 * 根据专辑id查询专辑信息
+	 * @param id
+	 * @return
+	 */
+	@Override
+	public AlbumInfo getAlbumInfoFromDB(Long id) {
 		//1 根据主键查询专辑信息
 		AlbumInfo albumInfo = albumInfoMapper.selectById(id);
 
@@ -169,6 +244,7 @@ public class AlbumInfoServiceImpl extends ServiceImpl<AlbumInfoMapper, AlbumInfo
 		albumInfo.setAlbumAttributeValueVoList(albumAttributeValues);
 		return albumInfo;
 	}
+
 
 	/**
 	 * 专辑修改

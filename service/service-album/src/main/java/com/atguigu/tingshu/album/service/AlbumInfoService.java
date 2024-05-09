@@ -47,6 +47,9 @@ public interface AlbumInfoService extends IService<AlbumInfo> {
      */
     AlbumInfo getAlbumInfo(Long id);
 
+
+    AlbumInfo getAlbumInfoFromDB(Long id);
+
     /**
      * 专辑修改
      * TODO 该接口必须登录才能访问
