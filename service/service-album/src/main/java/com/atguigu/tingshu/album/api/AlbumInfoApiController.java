@@ -89,7 +89,8 @@ public class AlbumInfoApiController {
 	@Operation(summary = "修改时根据专辑id查询数据的回写")
 	@GetMapping("/albumInfo/getAlbumInfo/{id}")
 	public Result<AlbumInfo> getAlbumInfo(@PathVariable("id") Long id){
-		AlbumInfo albumInfo = albumInfoService.getAlbumInfo(id);
+//		AlbumInfo albumInfo = albumInfoService.getAlbumInfo(id);
+		AlbumInfo albumInfo = albumInfoService.getAlbumInfoFromDB(id);
 		return Result.ok(albumInfo);
 	}
 

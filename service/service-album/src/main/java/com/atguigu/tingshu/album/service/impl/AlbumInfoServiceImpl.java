@@ -9,6 +9,7 @@ import com.atguigu.tingshu.album.mapper.AlbumInfoMapper;
 import com.atguigu.tingshu.album.mapper.AlbumStatMapper;
 import com.atguigu.tingshu.album.mapper.TrackInfoMapper;
 import com.atguigu.tingshu.album.service.AlbumInfoService;
+import com.atguigu.tingshu.common.cache.GuiguCache;
 import com.atguigu.tingshu.common.constant.KafkaConstant;
 import com.atguigu.tingshu.common.constant.RedisConstant;
 import com.atguigu.tingshu.common.constant.SystemConstant;
@@ -292,6 +293,7 @@ public class AlbumInfoServiceImpl extends ServiceImpl<AlbumInfoMapper, AlbumInfo
 	 * @param id
 	 * @return
 	 */
+	@GuiguCache(prefix = "albumInfo:")
 	@Override
 	public AlbumInfo getAlbumInfoFromDB(Long id) {
 		//1 根据主键查询专辑信息
@@ -370,6 +372,7 @@ public class AlbumInfoServiceImpl extends ServiceImpl<AlbumInfoMapper, AlbumInfo
 	 * @param albumId
 	 * @return
 	 */
+	@GuiguCache(prefix = "albumStatVo:")
 	@Override
 	public AlbumStatVo getAlbumStatVo(Long albumId) {
 		return albumInfoMapper.getAlbumStatVo(albumId);

@@ -4,6 +4,7 @@ import cn.hutool.core.collection.CollectionUtil;
 import com.alibaba.fastjson.JSONObject;
 import com.atguigu.tingshu.album.mapper.*;
 import com.atguigu.tingshu.album.service.BaseCategoryService;
+import com.atguigu.tingshu.common.cache.GuiguCache;
 import com.atguigu.tingshu.model.album.*;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -102,6 +103,7 @@ public class BaseCategoryServiceImpl extends ServiceImpl<BaseCategory1Mapper, Ba
 	 * @param category3Id
 	 * @return
 	 */
+	@GuiguCache(prefix = "categoryViewBy3Id:")
 	@Override
 	public BaseCategoryView getCategoryViewBy3Id(Long category3Id) {
 		return baseCategoryViewMapper.selectById(category3Id);
