@@ -34,6 +34,8 @@ import com.atguigu.tingshu.vo.search.AlbumInfoIndexVo;
 import com.atguigu.tingshu.vo.search.AlbumSearchResponseVo;
 import com.atguigu.tingshu.vo.user.UserInfoVo;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RBloomFilter;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.elasticsearch.core.suggest.Completion;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -75,6 +77,9 @@ public class SearchServiceImpl implements SearchService {
     @Autowired
     private RedisTemplate redisTemplate;
 
+    @Autowired
+    private RedissonClient redissonClient;
+
     private static final String INDEX_NAME = "albuminfo";
 
     private static final String SUGGEST_INDEX = "suggestinfo";
@@ -94,7 +99,7 @@ public class SearchServiceImpl implements SearchService {
         //2 远程调用专辑服务获取专辑以及专辑属性列表信息，为索引库文档对象中的相关属性赋值
         CompletableFuture<AlbumInfo> albumInfoCompletableFuture = CompletableFuture.supplyAsync(() -> {
             AlbumInfo albumInfo = albumFeignClient.getAlbumInfo(albumId).getData();
-//            Assert.notNull(albumInfo, "专辑信息为空！");
+            Assert.notNull(albumInfo, "专辑信息为空！");
             BeanUtil.copyProperties(albumInfo, albumInfoIndex);
             //2.2 处理专辑属性值列表
             List<AlbumAttributeValue> albumAttributeValueVoList = albumInfo.getAlbumAttributeValueVoList();
@@ -112,14 +117,14 @@ public class SearchServiceImpl implements SearchService {
         //3 远程调用用户服务获取用户信息，为索引库文档对象中的相关属性赋值
         CompletableFuture<Void> userInfoComplatableFuture = albumInfoCompletableFuture.thenAcceptAsync(albumInfo -> {
             UserInfoVo userInfo = userFeignClient.getUserInfoVoByUserId(albumInfo.getUserId()).getData();
-//            Assert.notNull(userInfo, "主播信息不存在！");
+            Assert.notNull(userInfo, "主播信息不存在！");
             albumInfoIndex.setAnnouncerName(userInfo.getNickname());
         }, threadPoolExecutor);
 
         //4 远程调用专辑服务获取分类信息
         CompletableFuture<Void> categoryComplatableFuture = albumInfoCompletableFuture.thenAcceptAsync(albumInfo -> {
             BaseCategoryView categoryView = albumFeignClient.getCategoryViewBy3Id(albumInfo.getCategory3Id()).getData();
-//            Assert.notNull(categoryView, "分类信息不存在！");
+            Assert.notNull(categoryView, "分类信息不存在！");
             albumInfoIndex.setCategory1Id(categoryView.getCategory1Id());
             albumInfoIndex.setCategory2Id(categoryView.getCategory2Id());
         }, threadPoolExecutor);
@@ -144,6 +149,11 @@ public class SearchServiceImpl implements SearchService {
 
         //6 将上架专辑 专辑标题、名称存入提词索引库
         this.saveSuggestDoc(albumInfoIndex);
+
+        //7 将上架专辑id存入到布隆过滤器
+        RBloomFilter<Long> bloomFilter = redissonClient.getBloomFilter(RedisConstant.ALBUM_BLOOM_FILTER);
+        bloomFilter.add(albumId);
+
     }
 
     /**

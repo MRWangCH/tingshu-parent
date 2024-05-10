@@ -43,7 +43,7 @@ public class GuiguCacheAspect {
             //1.1 动态构建缓存数据的key，注解中定义的前缀的值+方法参数
             String param = "none";
             Object[] args = joinPoint.getArgs();
-            if (args == null && args.length > 0) {
+            if (args != null && args.length > 0) {
                 param = Arrays.asList(args).stream().map(arg -> arg.toString()).collect(Collectors.joining(":"));
             }
             String dataKey = guiguCache.prefix() + param;
