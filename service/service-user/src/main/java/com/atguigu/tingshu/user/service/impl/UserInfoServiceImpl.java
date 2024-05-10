@@ -118,11 +118,22 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
      */
     @Override
     public void updateUser(UserInfoVo userInfoVo) {
+        //1 先删除缓存
+        redisTemplate.delete("userInfo:" + userInfoVo.getId());
+        //2 更新数据库
         UserInfo userInfo = new UserInfo();
         userInfo.setId(userInfoVo.getId());
         userInfo.setAvatarUrl(userInfoVo.getAvatarUrl());
         userInfo.setNickname(userInfoVo.getNickname());
         userInfoMapper.updateById(userInfo);
+        try {
+            //3 睡眠一段时间，确保并发情况下读的线程执行完毕
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        //4 再次删除缓存
+        redisTemplate.delete("userInfo:" + userInfoVo.getId());
     }
 
     /**
