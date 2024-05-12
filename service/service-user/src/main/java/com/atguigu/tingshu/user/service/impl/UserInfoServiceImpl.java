@@ -188,4 +188,18 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         }
         return hashMap;
     }
+
+    /**
+     * 判断用户是否购买过指定专辑
+     * @param albumId
+     * @return
+     */
+    @Override
+    public Boolean isPaidAlbum(Long userId, Long albumId) {
+        LambdaQueryWrapper<UserPaidAlbum> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(UserPaidAlbum::getUserId, userId);
+        queryWrapper.eq(UserPaidAlbum::getAlbumId, albumId);
+        Long count = userPaidAlbumMapper.selectCount(queryWrapper);
+        return count > 0;
+    }
 }

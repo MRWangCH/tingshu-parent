@@ -4,7 +4,7 @@ import com.atguigu.tingshu.common.constant.RedisConstant;
 import com.atguigu.tingshu.common.execption.GuiguException;
 import com.atguigu.tingshu.common.result.ResultCodeEnum;
 import com.atguigu.tingshu.common.util.AuthContextHolder;
-import com.atguigu.tingshu.vo.user.UserInfoVo;
+import com.atguigu.tingshu.model.user.UserInfo;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
@@ -55,19 +55,19 @@ public class GuiGuLoginAspect {
         String token = request.getHeader("token");
         //2.2 拼接登录后存入redis中的key
         String loginKey = RedisConstant.USER_LOGIN_KEY_PREFIX + token;
-        UserInfoVo userInfoVo = (UserInfoVo) redisTemplate.opsForValue().get(loginKey);
+        UserInfo userInfo = (UserInfo) redisTemplate.opsForValue().get(loginKey);
         if (guiGuLogin.required()){
             //要求登录才能访问
-            if (userInfoVo == null) {
+            if (userInfo == null) {
                 throw  new GuiguException(ResultCodeEnum.LOGIN_AUTH);
             }
         }
 
         //3 将用户信息隐式传入，在当前线程声生命周期获取到用户信息
-        if (userInfoVo != null){
+        if (userInfo != null){
             //将用户id，名称存入ThreadLocal中，以便随时取值
-            AuthContextHolder.setUserId(userInfoVo.getId());
-            AuthContextHolder.setUsername(userInfoVo.getNickname());
+            AuthContextHolder.setUserId(userInfo.getId());
+            AuthContextHolder.setUsername(userInfo.getNickname());
         }
 
         //执行目标方法->切入点方法（被增强的方法）

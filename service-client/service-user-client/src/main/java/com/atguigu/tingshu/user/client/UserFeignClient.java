@@ -1,6 +1,7 @@
 package com.atguigu.tingshu.user.client;
 
 import com.atguigu.tingshu.common.result.Result;
+import com.atguigu.tingshu.model.user.VipServiceConfig;
 import com.atguigu.tingshu.user.client.impl.UserDegradeFeignClient;
 import com.atguigu.tingshu.vo.user.UserInfoVo;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -39,4 +40,20 @@ public interface UserFeignClient {
     @PostMapping("/userInfo/userIsPaidTrack/{userId}/{albumId}")
     public Result<Map<Long, Integer>> userIsPaidTrackList(@PathVariable("userId") Long userId, @PathVariable("albumId") Long albumId, @RequestBody List<Long> trackIdList);
 
+    /**
+     * 是否购买过此专辑
+     * @param albumId
+     * @return
+     */
+    @GetMapping("/userInfo/isPaidAlbum/{albumId}")
+    public Result<Boolean> isPaidAlbum(@PathVariable Long albumId);
+
+
+    /**
+     * 根据主键id查询vip套餐详情
+     * @param id
+     * @return
+     */
+    @GetMapping("/vipServiceConfig/getVipServiceConfig/{id}")
+    public Result<VipServiceConfig> getVipServiceConfig(@PathVariable Long id);
 }
