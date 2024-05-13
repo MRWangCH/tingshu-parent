@@ -11,6 +11,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Map;
 
 public interface TrackInfoService extends IService<TrackInfo> {
@@ -83,4 +84,12 @@ public interface TrackInfoService extends IService<TrackInfo> {
      * @return
      */
     TrackStatVo getTrackStatVo(Long trackId);
+
+    /**
+     * 获取用户声音分集购买支付列表
+     * @param userId
+     * @param trackId
+     * @return
+     */
+    List<Map<String, Object>> getUserTrackWaitPayList(Long userId, Long trackId);
 }

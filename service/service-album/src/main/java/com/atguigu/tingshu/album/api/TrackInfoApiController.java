@@ -146,5 +146,20 @@ public class TrackInfoApiController {
 	public Result<TrackStatVo> getTrackStatVo(@PathVariable Long trackId) {
 		return Result.ok(trackInfoService.getTrackStatVo(trackId));
 	}
+
+
+	/**
+	 * 	获取用户声音分集购买支付列表
+	 * @param trackId
+	 * @return
+	 */
+	@GuiGuLogin
+	@Operation(summary = "获取用户声音分集购买支付列表")
+	@GetMapping("/trackInfo/findUserTrackPaidList/{trackId}")
+	public Result<List<Map<String, Object>>> getUserTrackWaitPayList(@PathVariable Long trackId) {
+		Long userId = AuthContextHolder.getUserId();
+		List<Map<String, Object>> list = trackInfoService.getUserTrackWaitPayList(userId, trackId);
+		return Result.ok(list);
+	}
 }
 
