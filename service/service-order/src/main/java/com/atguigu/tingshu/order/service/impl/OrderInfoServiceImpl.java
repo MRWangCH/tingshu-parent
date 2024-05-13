@@ -1,5 +1,7 @@
 package com.atguigu.tingshu.order.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.IdUtil;
 import com.atguigu.tingshu.common.constant.RedisConstant;
@@ -7,6 +9,7 @@ import com.atguigu.tingshu.common.constant.SystemConstant;
 import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.model.order.OrderInfo;
 import com.atguigu.tingshu.model.user.VipServiceConfig;
+import com.atguigu.tingshu.order.helper.SignHelper;
 import com.atguigu.tingshu.order.mapper.OrderInfoMapper;
 import com.atguigu.tingshu.order.service.OrderInfoService;
 import com.atguigu.tingshu.user.client.UserFeignClient;
@@ -24,6 +27,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -110,8 +114,11 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
         orderInfoVo.setOrderDetailVoList(orderDetailVoList);
         orderInfoVo.setOrderDerateVoList(orderDerateVoList);
-        //orderInfoVo.setTimestamp();
-        //orderInfoVo.setSign();
+        //针对本次请求所有参数进行签名 --> md5（参数）= 签名值，防止数据传输过程中被篡改
+        orderInfoVo.setTimestamp(DateUtil.current());
+        Map<String, Object> map = BeanUtil.beanToMap(orderInfoVo, false, true);
+        String sign = SignHelper.getSign(map);
+        orderInfoVo.setSign(sign);
 
 
         return orderInfoVo;
