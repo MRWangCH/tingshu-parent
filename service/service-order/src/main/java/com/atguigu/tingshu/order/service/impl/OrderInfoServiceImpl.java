@@ -1,6 +1,8 @@
 package com.atguigu.tingshu.order.service.impl;
 
 import cn.hutool.core.lang.Assert;
+import cn.hutool.core.util.IdUtil;
+import com.atguigu.tingshu.common.constant.RedisConstant;
 import com.atguigu.tingshu.common.constant.SystemConstant;
 import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.model.order.OrderInfo;
@@ -16,11 +18,13 @@ import com.atguigu.tingshu.vo.user.UserInfoVo;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -32,6 +36,9 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
     @Autowired
     private UserFeignClient userFeignClient;
+
+    @Autowired
+    private RedisTemplate redisTemplate;
 
 
     /**
@@ -88,9 +95,13 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
         }
 
+        //构建渲染订单结算所需对象OrderInfoVo：包含价格、订单明细表、优惠列表、其他属性
         OrderInfoVo orderInfoVo = new OrderInfoVo();
-        //orderInfoVo.setTradeNo();
-        //orderInfoVo.setPayWay();
+        //针对本次请求产生流水号，订单被多次重复提交。（提交后回退到页面继续提交）将流水号存入到redis设置5分钟过期时间
+        String tradeKey = RedisConstant.ORDER_TRADE_NO_PREFIX + userId;
+        String tradeNo = IdUtil.fastSimpleUUID();
+        redisTemplate.opsForValue().set(tradeKey, tradeNo, 5, TimeUnit.MINUTES);
+        orderInfoVo.setTradeNo(tradeNo);
         orderInfoVo.setItemType(tradeVo.getItemType());
 
         orderInfoVo.setOriginalAmount(originalAmount);
