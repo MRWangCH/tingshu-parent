@@ -202,4 +202,24 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         Long count = userPaidAlbumMapper.selectCount(queryWrapper);
         return count > 0;
     }
+
+
+    /**
+     * 根据专辑id+用户ID获取用户已购买声音id列表
+     * @param albumId
+     * @return
+     */
+    @Override
+    public List<Long> getUserPaidTrackList(Long albumId, Long userId) {
+        LambdaQueryWrapper<UserPaidTrack> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(UserPaidTrack::getUserId, userId);
+        queryWrapper.eq(UserPaidTrack::getAlbumId, albumId);
+        List<UserPaidTrack> userPaidTracks = userPaidTrackMapper.selectList(queryWrapper);
+        if (CollectionUtil.isNotEmpty(userPaidTracks)) {
+            //获取已购声音列表
+            List<Long> userPaidTrackList = userPaidTracks.stream().map(UserPaidTrack::getTrackId).collect(Collectors.toList());
+            return userPaidTrackList;
+        }
+        return null;
+    }
 }

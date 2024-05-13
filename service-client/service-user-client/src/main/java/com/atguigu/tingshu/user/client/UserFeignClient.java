@@ -56,4 +56,12 @@ public interface UserFeignClient {
      */
     @GetMapping("/vipServiceConfig/getVipServiceConfig/{id}")
     public Result<VipServiceConfig> getVipServiceConfig(@PathVariable Long id);
+
+    /**
+     * 根据专辑id+用户ID获取用户已购买声音id列表
+     * @param albumId
+     * @return
+     */
+    @GetMapping("/userInfo/findUserPaidTrackList/{albumId}")
+    public Result<List<Long>> getUserPaidTrackList(@PathVariable Long albumId);
 }
