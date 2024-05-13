@@ -5,6 +5,7 @@ import com.atguigu.tingshu.common.execption.GuiguException;
 import com.atguigu.tingshu.common.result.ResultCodeEnum;
 import com.atguigu.tingshu.common.util.AuthContextHolder;
 import com.atguigu.tingshu.model.user.UserInfo;
+import com.atguigu.tingshu.vo.user.UserInfoVo;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
@@ -55,7 +56,7 @@ public class GuiGuLoginAspect {
         String token = request.getHeader("token");
         //2.2 拼接登录后存入redis中的key
         String loginKey = RedisConstant.USER_LOGIN_KEY_PREFIX + token;
-        UserInfo userInfo = (UserInfo) redisTemplate.opsForValue().get(loginKey);
+        UserInfoVo userInfo = (UserInfoVo) redisTemplate.opsForValue().get(loginKey);
         if (guiGuLogin.required()){
             //要求登录才能访问
             if (userInfo == null) {
