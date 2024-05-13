@@ -4,9 +4,13 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.IdUtil;
+import com.atguigu.tingshu.album.AlbumFeignClient;
 import com.atguigu.tingshu.common.constant.RedisConstant;
 import com.atguigu.tingshu.common.constant.SystemConstant;
+import com.atguigu.tingshu.common.execption.GuiguException;
 import com.atguigu.tingshu.common.result.Result;
+import com.atguigu.tingshu.common.result.ResultCodeEnum;
+import com.atguigu.tingshu.model.album.AlbumInfo;
 import com.atguigu.tingshu.model.order.OrderInfo;
 import com.atguigu.tingshu.model.user.VipServiceConfig;
 import com.atguigu.tingshu.order.helper.SignHelper;
@@ -43,6 +47,9 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
     @Autowired
     private RedisTemplate redisTemplate;
+
+    @Autowired
+    private AlbumFeignClient albumFeignClient;
 
 
     /**
@@ -93,6 +100,46 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
         } else if (SystemConstant.ORDER_ITEM_TYPE_ALBUM.equals(tradeVo.getItemType())) {
             //4 处理购买类型-专辑
+            //4.1 远程调用用户服务 判断用户是否购买该专辑
+            Boolean ifBuy = userFeignClient.isPaidAlbum(tradeVo.getItemId()).getData();
+            if (ifBuy) {
+                throw new GuiguException(ResultCodeEnum.REPEAT_BUY_ERROR);
+            }
+            //4.2 远程调用专辑服务 获取专辑信息
+            AlbumInfo albumInfo = albumFeignClient.getAlbumInfo(tradeVo.getItemId()).getData();
+            Assert.notNull(albumInfo, "专辑不存在!");
+            //4.3 动态计算专辑价格：原价、订单价、减免价
+            orderAmount = originalAmount;
+            originalAmount = albumInfo.getPrice();
+            if (userInfo.getIsVip().intValue() == 1 && userInfo.getVipExpireTime().after(DateUtil.date())) {
+                //是vip
+                if (albumInfo.getVipDiscount().intValue() != -1) {
+                    orderAmount = originalAmount.multiply(albumInfo.getVipDiscount()).divide(new BigDecimal(10));
+                    derateAmount = originalAmount.subtract(orderAmount);
+                }
+            } else {
+                if (albumInfo.getDiscount().intValue() != -1) {
+                    //普通用户折扣
+                    orderAmount = originalAmount.multiply(albumInfo.getDiscount()).divide(new BigDecimal("10"));
+                    derateAmount = originalAmount.subtract(orderAmount);
+                }
+
+            }
+            //4.4 封装订单明细集合（专辑信息）
+            OrderDetailVo orderDetailVo = new OrderDetailVo();
+            orderDetailVo.setItemId(tradeVo.getItemId());
+            orderDetailVo.setItemName(albumInfo.getAlbumTitle());
+            orderDetailVo.setItemUrl(albumInfo.getCoverUrl());
+            orderDetailVo.setItemPrice(originalAmount);
+            orderDetailVoList.add(orderDetailVo);
+
+            //4.5 封装订单优惠集合（专辑信息）
+            OrderDerateVo orderDerateVo = new OrderDerateVo();
+            orderDerateVo.setDerateType(SystemConstant.ORDER_DERATE_ALBUM_DISCOUNT);
+            orderDerateVo.setDerateAmount(derateAmount);
+            orderDerateVo.setRemarks("专辑优惠：" + derateAmount);
+            orderDerateVoList.add(orderDerateVo);
+
 
         } else if (SystemConstant.ORDER_ITEM_TYPE_TRACK.equals(tradeVo.getItemType())) {
             //5 处理购买类型-声音
