@@ -161,5 +161,21 @@ public class TrackInfoApiController {
 		List<Map<String, Object>> list = trackInfoService.getUserTrackWaitPayList(userId, trackId);
 		return Result.ok(list);
 	}
+
+
+    /**
+     * 查询用户声音分集购买支付列表-用于渲染订单结算页
+     * @param trackId
+     * @param trackCount
+     * @return
+     */
+	@Operation(summary = "查询用户声音分集购买支付列表-用于渲染订单结算页")
+	@GuiGuLogin
+    @GetMapping("/trackInfo/findPaidTrackInfoList/{trackId}/{trackCount}")
+    public Result<List<TrackInfo>> getWaitPayTrackInfoList(@PathVariable Long trackId, @PathVariable Integer trackCount) {
+        Long userId = AuthContextHolder.getUserId();
+        List<TrackInfo> list = trackInfoService.getWaitPayTrackInfoList(userId, trackId, trackCount);
+        return Result.ok(list);
+    }
 }
 

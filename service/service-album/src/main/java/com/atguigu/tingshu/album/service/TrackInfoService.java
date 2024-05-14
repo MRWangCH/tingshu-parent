@@ -92,4 +92,13 @@ public interface TrackInfoService extends IService<TrackInfo> {
      * @return
      */
     List<Map<String, Object>> getUserTrackWaitPayList(Long userId, Long trackId);
+
+    /**
+     * 查询用户声音分集购买支付列表-用于渲染订单结算页
+     * @param userId
+     * @param trackId
+     * @param trackCount
+     * @return
+     */
+    List<TrackInfo> getWaitPayTrackInfoList(Long userId, Long trackId, Integer trackCount);
 }

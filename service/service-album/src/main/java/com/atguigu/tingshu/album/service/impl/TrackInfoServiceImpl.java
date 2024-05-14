@@ -423,4 +423,36 @@ public class TrackInfoServiceImpl extends ServiceImpl<TrackInfoMapper, TrackInfo
         }
         return list;
     }
+
+    /**
+     * 查询用户声音分集购买支付列表-用于渲染订单结算页
+     * @param userId
+     * @param trackId
+     * @param trackCount
+     * @return
+     */
+    @Override
+    public List<TrackInfo> getWaitPayTrackInfoList(Long userId, Long trackId, Integer trackCount) {
+        //1 根据声音id查询专辑
+        TrackInfo trackInfo = trackInfoMapper.selectById(trackId);
+        Assert.notNull(trackInfo, "声音不存在");
+
+        //2 根据专辑id查询当前选中声音序号（序号大于当前声音序号声音列表），按照序号正序排序
+        LambdaQueryWrapper<TrackInfo> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(TrackInfo::getAlbumId, trackInfo.getAlbumId());
+        queryWrapper.ge(TrackInfo::getOrderNum, trackInfo.getOrderNum());
+        queryWrapper.orderByAsc(TrackInfo::getOrderNum);
+        queryWrapper.last("limit " + trackCount);
+        List<TrackInfo> waitBuyTrackInfoList = trackInfoMapper.selectList(queryWrapper);
+
+        //3 根据专辑id远程调用用户服务获取已购声音id列表
+        List<Long> userPaidTrackList = userFeignClient.getUserPaidTrackList(trackInfo.getAlbumId()).getData();
+
+        //4 将已购声音id排除到分集购买以外
+        if (CollectionUtil.isNotEmpty(userPaidTrackList)) {
+            //用户已买过当前专辑下的声音 待购买声音id未出现在已购声音id集合中
+            waitBuyTrackInfoList = waitBuyTrackInfoList.stream().filter(trackInfo1 -> !userPaidTrackList.contains(trackInfo1.getId())).collect(Collectors.toList());
+        }
+        return waitBuyTrackInfoList;
+    }
 }

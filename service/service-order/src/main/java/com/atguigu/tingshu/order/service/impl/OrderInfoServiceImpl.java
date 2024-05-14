@@ -11,6 +11,7 @@ import com.atguigu.tingshu.common.execption.GuiguException;
 import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.common.result.ResultCodeEnum;
 import com.atguigu.tingshu.model.album.AlbumInfo;
+import com.atguigu.tingshu.model.album.TrackInfo;
 import com.atguigu.tingshu.model.order.OrderInfo;
 import com.atguigu.tingshu.model.user.VipServiceConfig;
 import com.atguigu.tingshu.order.helper.SignHelper;
@@ -33,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -143,6 +145,23 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
         } else if (SystemConstant.ORDER_ITEM_TYPE_TRACK.equals(tradeVo.getItemType())) {
             //5 处理购买类型-声音
+            //5.1 远程调用专辑服务-选择声音id+数量得到待购声音列表（排除已购声音列表）
+            List<TrackInfo> waitTrackInfoList = albumFeignClient.getWaitPayTrackInfoList(tradeVo.getItemId(), tradeVo.getTrackCount()).getData();
+            //5.2 远程调用专辑服务获取专辑信息得到声音单价
+            AlbumInfo albumInfo = albumFeignClient.getAlbumInfo(waitTrackInfoList.get(0).getAlbumId()).getData();
+            BigDecimal albumInfoPrice = albumInfo.getPrice();
+            //5.3 计算价格：原价，订单加，声音不支持折扣
+            originalAmount = albumInfoPrice.multiply(BigDecimal.valueOf(waitTrackInfoList.size()));
+            orderAmount = originalAmount;
+            //5.4 遍历待购声音列表构建订单明细集合
+            orderDetailVoList = waitTrackInfoList.stream().map(trackInfo -> {
+                OrderDetailVo orderDetailVo = new OrderDetailVo();
+                orderDetailVo.setItemId(trackInfo.getId());
+                orderDetailVo.setItemName(trackInfo.getTrackTitle());
+                orderDetailVo.setItemUrl(trackInfo.getCoverUrl());
+                orderDetailVo.setItemPrice(albumInfoPrice);
+                return orderDetailVo;
+            }).collect(Collectors.toList());
 
         }
 
