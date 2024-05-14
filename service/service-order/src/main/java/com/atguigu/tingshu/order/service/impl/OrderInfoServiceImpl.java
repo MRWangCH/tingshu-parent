@@ -130,13 +130,13 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
             if (userInfo.getIsVip().intValue() == 1 && userInfo.getVipExpireTime().after(DateUtil.date())) {
                 //是vip
                 if (albumInfo.getVipDiscount().intValue() != -1) {
-                    orderAmount = originalAmount.multiply(albumInfo.getVipDiscount()).divide(new BigDecimal(10), RoundingMode.HALF_UP);
+                    orderAmount = originalAmount.multiply(albumInfo.getVipDiscount()).divide(new BigDecimal(10),2 ,RoundingMode.HALF_UP);
                     derateAmount = originalAmount.subtract(orderAmount);
                 }
             } else {
                 if (albumInfo.getDiscount().intValue() != -1) {
                     //普通用户折扣
-                    orderAmount = originalAmount.multiply(albumInfo.getDiscount()).divide(new BigDecimal("10"), RoundingMode.HALF_UP);
+                    orderAmount = originalAmount.multiply(albumInfo.getDiscount()).divide(new BigDecimal("10"),2 ,RoundingMode.HALF_UP);
                     derateAmount = originalAmount.subtract(orderAmount);
                 }
 
