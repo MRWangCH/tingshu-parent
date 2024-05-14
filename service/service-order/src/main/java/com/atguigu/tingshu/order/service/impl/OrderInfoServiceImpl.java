@@ -165,7 +165,7 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
             AlbumInfo albumInfo = albumFeignClient.getAlbumInfo(waitTrackInfoList.get(0).getAlbumId()).getData();
             BigDecimal albumInfoPrice = albumInfo.getPrice();
             //5.3 计算价格：原价，订单加，声音不支持折扣
-            originalAmount = albumInfoPrice.multiply(BigDecimal.valueOf(waitTrackInfoList.size()), mathContext);
+            originalAmount = albumInfoPrice.multiply(BigDecimal.valueOf(waitTrackInfoList.size()));
             orderAmount = originalAmount;
             //5.4 遍历待购声音列表构建订单明细集合
             orderDetailVoList = waitTrackInfoList.stream().map(trackInfo -> {
