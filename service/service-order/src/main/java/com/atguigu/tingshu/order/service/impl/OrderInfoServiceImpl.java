@@ -1,6 +1,7 @@
 package com.atguigu.tingshu.order.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.IdUtil;
@@ -8,13 +9,16 @@ import com.atguigu.tingshu.album.AlbumFeignClient;
 import com.atguigu.tingshu.common.constant.RedisConstant;
 import com.atguigu.tingshu.common.constant.SystemConstant;
 import com.atguigu.tingshu.common.execption.GuiguException;
-import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.common.result.ResultCodeEnum;
 import com.atguigu.tingshu.model.album.AlbumInfo;
 import com.atguigu.tingshu.model.album.TrackInfo;
+import com.atguigu.tingshu.model.order.OrderDerate;
+import com.atguigu.tingshu.model.order.OrderDetail;
 import com.atguigu.tingshu.model.order.OrderInfo;
 import com.atguigu.tingshu.model.user.VipServiceConfig;
 import com.atguigu.tingshu.order.helper.SignHelper;
+import com.atguigu.tingshu.order.mapper.OrderDerateMapper;
+import com.atguigu.tingshu.order.mapper.OrderDetailMapper;
 import com.atguigu.tingshu.order.mapper.OrderInfoMapper;
 import com.atguigu.tingshu.order.service.OrderInfoService;
 import com.atguigu.tingshu.user.client.UserFeignClient;
@@ -27,12 +31,14 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.math.MathContext;
+import java.math.RoundingMode;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -53,6 +59,12 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
     @Autowired
     private AlbumFeignClient albumFeignClient;
 
+    @Autowired
+    private OrderDetailMapper orderDetailMapper;
+
+    @Autowired
+    private OrderDerateMapper orderDerateMapper;
+
 
     /**
      * 订单结算页面渲染-数据汇总
@@ -64,6 +76,8 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
      */
     @Override
     public OrderInfoVo trade(Long userId, TradeVo tradeVo) {
+        //所有相乘计算保留2位小数
+        MathContext mathContext = new MathContext(2, RoundingMode.HALF_UP);
         //1 声明订单结算页中价格变量，订单明细，优惠信息变量-赋予初始值
         BigDecimal originalAmount = new BigDecimal("0.00");
         BigDecimal derateAmount = new BigDecimal("0.00");
@@ -116,13 +130,13 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
             if (userInfo.getIsVip().intValue() == 1 && userInfo.getVipExpireTime().after(DateUtil.date())) {
                 //是vip
                 if (albumInfo.getVipDiscount().intValue() != -1) {
-                    orderAmount = originalAmount.multiply(albumInfo.getVipDiscount()).divide(new BigDecimal(10));
+                    orderAmount = originalAmount.multiply(albumInfo.getVipDiscount()).divide(new BigDecimal(10), RoundingMode.HALF_UP);
                     derateAmount = originalAmount.subtract(orderAmount);
                 }
             } else {
                 if (albumInfo.getDiscount().intValue() != -1) {
                     //普通用户折扣
-                    orderAmount = originalAmount.multiply(albumInfo.getDiscount()).divide(new BigDecimal("10"));
+                    orderAmount = originalAmount.multiply(albumInfo.getDiscount()).divide(new BigDecimal("10"), RoundingMode.HALF_UP);
                     derateAmount = originalAmount.subtract(orderAmount);
                 }
 
@@ -151,7 +165,7 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
             AlbumInfo albumInfo = albumFeignClient.getAlbumInfo(waitTrackInfoList.get(0).getAlbumId()).getData();
             BigDecimal albumInfoPrice = albumInfo.getPrice();
             //5.3 计算价格：原价，订单加，声音不支持折扣
-            originalAmount = albumInfoPrice.multiply(BigDecimal.valueOf(waitTrackInfoList.size()));
+            originalAmount = albumInfoPrice.multiply(BigDecimal.valueOf(waitTrackInfoList.size()), mathContext);
             orderAmount = originalAmount;
             //5.4 遍历待购声音列表构建订单明细集合
             orderDetailVoList = waitTrackInfoList.stream().map(trackInfo -> {
@@ -188,5 +202,83 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
 
         return orderInfoVo;
+    }
+
+    /**
+     * 订单提交（余额付款）
+     * @param userId
+     * @param orderInfoVo
+     * @return
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public Map<String, String> submitOrder(Long userId, OrderInfoVo orderInfoVo) {
+        //1 请求数据验签，防止数据篡改
+        //渲染结算页面时将payway排除，提交的vo中包含支付方式，将支付方式移除
+        Map<String, Object> paramMap = BeanUtil.beanToMap(orderInfoVo);
+        paramMap.remove("payWay");
+        SignHelper.checkSign(paramMap);
+        //2 验证流水号，防止订单重复提交
+        //通过流水号key查询redis中正确的流水号，与前端页面传过来的流水号比较
+        String tradeKey = RedisConstant.ORDER_TRADE_NO_PREFIX + userId;
+        //2.2 跟用户提交流水号比对 比对成功后，将流水号删除（保证原子性-lua脚本）成功，将流水号删除
+        String script = "if(redis.call('get', KEYS[1]) == ARGV[1]) then return redis.call('del', KEYS[1]) else return 0 end";
+        DefaultRedisScript<Boolean> redisScript = new DefaultRedisScript<>();
+        redisScript.setScriptText(script);
+        redisScript.setResultType(Boolean.class);
+        Boolean flag = (Boolean) redisTemplate.execute(redisScript, Arrays.asList(tradeKey), orderInfoVo.getTradeNo());
+        if (!flag) {
+            throw new GuiguException(ResultCodeEnum.ORDER_SUBMIT_REPEAT);
+        }
+        //3 保存订单以及订单明细，订单优惠明细
+        OrderInfo orderInfo = this.saveOrder(userId, orderInfoVo);
+        //4 处理余额付款 判断支付类型：1103-余额
+
+        //5 封装订单编号到map
+        Map<String, String> map = new HashMap<>();
+        map.put("orderNo", orderInfo.getOrderNo());
+        return map;
+    }
+
+    /**
+     * 保存订单以及订单明细，订单优惠明细
+     * @param userId
+     * @param orderInfoVo
+     * @return
+     */
+    @Override
+    public OrderInfo saveOrder(Long userId, OrderInfoVo orderInfoVo) {
+        //1 将订单相关信息封装成订单对象，向订单表新增一条记录
+        OrderInfo orderInfo = BeanUtil.copyProperties(orderInfoVo, OrderInfo.class);
+        //1.1 剩余属性赋值 用户id 订单标题 订单编号 订单状态（未支付）
+        orderInfo.setUserId(userId);
+        orderInfo.setOrderStatus(SystemConstant.ORDER_STATUS_UNPAID);
+        orderInfo.setOrderTitle(orderInfoVo.getOrderDetailVoList().get(0).getItemName());
+        //订单编号形式：当天YYYYMMDD+分布式id生成策略：雪花算法
+        String orderNo = DateUtil.today().replaceAll("-", "") + IdUtil.getSnowflakeNextId();
+        orderInfo.setOrderNo(orderNo);
+        orderInfoMapper.insert(orderInfo);
+        Long orderInfoId = orderInfo.getId();
+
+        //2 将提交的订单明细封装为订单明细集合，批量向订单明细表中新增若干条记录
+        List<OrderDetailVo> orderDetailVoList = orderInfoVo.getOrderDetailVoList();
+        if (CollectionUtil.isNotEmpty(orderDetailVoList)) {
+            orderDetailVoList.stream().forEach(orderDetailVo -> {
+                OrderDetail orderDetail = BeanUtil.copyProperties(orderDetailVo, OrderDetail.class);
+                orderDetail.setOrderId(orderInfoId);
+                orderDetailMapper.insert(orderDetail);
+            });
+        }
+
+        //3 将提交的优惠明细封装为优惠明细集合，批量向优惠明细表中新增若干条记录
+        List<OrderDerateVo> orderDerateVoList = orderInfoVo.getOrderDerateVoList();
+        if (CollectionUtil.isNotEmpty(orderDerateVoList)) {
+            orderDerateVoList.stream().forEach(orderDerateVo -> {
+                OrderDerate orderDerate = BeanUtil.copyProperties(orderDerateVo, OrderDerate.class);
+                orderDerate.setOrderId(orderInfoId);
+                orderDerateMapper.insert(orderDerate);
+            });
+        }
+        return orderInfo;
     }
 }
