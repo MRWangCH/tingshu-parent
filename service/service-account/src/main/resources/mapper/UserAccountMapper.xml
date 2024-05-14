@@ -4,13 +4,30 @@
 
 <mapper namespace="com.atguigu.tingshu.account.mapper.UserAccountMapper">
 
-	<resultMap id="userAccountMap" type="com.atguigu.tingshu.model.account.UserAccount" autoMapping="true">
-	</resultMap>
+    <resultMap id="userAccountMap" type="com.atguigu.tingshu.model.account.UserAccount" autoMapping="true">
+    </resultMap>
 
-	<!-- 用于select查询公用抽取的列 -->
-	<sql id="columns">
-		id,user_id,total_amount,lock_amount,available_amount,total_income_amount,total_pay_amount,create_time,update_time,is_deleted
-	</sql>
+    <!-- 用于select查询公用抽取的列 -->
+    <sql id="columns">
+        id
+        ,user_id,total_amount,lock_amount,available_amount,total_income_amount,total_pay_amount,create_time,update_time,is_deleted
+    </sql>
+    <!--	查询可用余额是否充足：采用悲观锁-->
+    <select id="check" resultType="com.atguigu.tingshu.model.account.UserAccount">
+        select *
+        from user_account
+        where user_id = #{userId}
+          and available_amount >= #{amount} for update
+    </select>
+
+    <!--	账户可用余额锁定-->
+    <update id="lock">
+        update user_account
+        set lock_amount = lock_amount - #{amount},
+            total_amount = total_amount - #{amount},
+            total_pay_amount = total_pay_amount + #{amount}
+        where user_id = #{userId}
+    </update>
 
 </mapper>
 

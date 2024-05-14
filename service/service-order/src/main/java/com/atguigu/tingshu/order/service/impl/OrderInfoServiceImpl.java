@@ -232,8 +232,19 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
         }
         //3 保存订单以及订单明细，订单优惠明细
         OrderInfo orderInfo = this.saveOrder(userId, orderInfoVo);
-        //4 处理余额付款 判断支付类型：1103-余额
+        //4 TODO 处理余额付款 判断支付类型：支付方式：1101-微信 1102-支付宝 1103-账户余额，VIP，声音，专辑都支持余额付款，声音仅支持余额付款
+        if (SystemConstant.ORDER_PAY_ACCOUNT.equals(orderInfoVo.getPayWay())) {
+            //4.1 远程调用账户服务，以及锁定可用余额
 
+            //4.2 锁定成功默认为扣减成功，采用异步mq完成账户扣减
+
+            //4.3 修改订单状态：已支付
+
+            //4.4 采用MQ处理用户购买记录
+
+            //4.5 以上有异常的话，采用MQ回滚
+
+        }
         //5 封装订单编号到map
         Map<String, String> map = new HashMap<>();
         map.put("orderNo", orderInfo.getOrderNo());
