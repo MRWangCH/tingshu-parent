@@ -35,6 +35,7 @@ import com.atguigu.tingshu.vo.order.OrderInfoVo;
 import com.atguigu.tingshu.vo.order.TradeVo;
 import com.atguigu.tingshu.vo.user.UserInfoVo;
 import com.atguigu.tingshu.vo.user.UserPaidRecordVo;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -333,5 +334,73 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
             });
         }
         return orderInfo;
+    }
+
+
+    /**
+     * 获取订单信息
+     *
+     * @param userId
+     * @param orderNo
+     * @return
+     */
+    @Override
+    public OrderInfo getOrderInfo(Long userId, String orderNo) {
+        //1 根据订单编号+用户id查询订单信息
+        LambdaQueryWrapper<OrderInfo> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(OrderInfo::getOrderNo, orderNo);
+        queryWrapper.eq(OrderInfo::getUserId, userId);
+        OrderInfo orderInfo = orderInfoMapper.selectOne(queryWrapper);
+        if (orderInfo != null) {
+            //2 根据订单id查询订单信息
+            LambdaQueryWrapper<OrderDetail> detailQueryWrapper = new LambdaQueryWrapper<>();
+            detailQueryWrapper.eq(OrderDetail::getOrderId, orderInfo.getId());
+            List<OrderDetail> orderDetailList = orderDetailMapper.selectList(detailQueryWrapper);
+            orderInfo.setOrderDetailList(orderDetailList);
+            orderInfo.setPayWay(this.getPayWayName(orderInfo.getPayWay()));
+            orderInfo.setOrderStatusName(this.getOrderStatusName(orderInfo.getOrderStatus()));
+            //3 根据订单id查询优惠信息
+            LambdaQueryWrapper<OrderDerate> derateQueryWrapper = new LambdaQueryWrapper<>();
+            derateQueryWrapper.eq(OrderDerate::getOrderId, orderInfo.getId());
+            List<OrderDerate> orderDerateList = orderDerateMapper.selectList(derateQueryWrapper);
+            orderInfo.setOrderDerateList(orderDerateList);
+            return orderInfo;
+        }
+        return null;
+    }
+
+    /**
+     * 根据支付方式编号得到支付类型
+     *
+     * @param payWay
+     * @return
+     */
+    @Override
+    public String getPayWayName(String payWay) {
+        if (SystemConstant.ORDER_PAY_WAY_WEIXIN.equals(payWay)) {
+            return "微信支付";
+        } else if (SystemConstant.ORDER_PAY_ACCOUNT.equals(payWay)) {
+            return "余额支付";
+        } else if (SystemConstant.ORDER_PAY_WAY_ALIPAY.equals(payWay)) {
+            return "支付宝支付";
+        }
+        return "";
+    }
+
+    /**
+     * 根据订单状态编号得到订单状态
+     * @param orderStatus
+     * @return
+     */
+    @Override
+    public String getOrderStatusName(String orderStatus) {
+        if (SystemConstant.ORDER_STATUS_PAID.equals(orderStatus)) {
+            return "已支付";
+        } else if (SystemConstant.ORDER_STATUS_UNPAID.equals(orderStatus)) {
+            return "未支付";
+        } else if (SystemConstant.ORDER_STATUS_CANCEL.equals(orderStatus)) {
+            return "取消支付";
+        }
+        return "";
     }
 }

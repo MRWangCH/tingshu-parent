@@ -32,4 +32,26 @@ public interface OrderInfoService extends IService<OrderInfo> {
      * @return
      */
     OrderInfo saveOrder(Long userId, OrderInfoVo orderInfoVo);
+
+    /**
+     * 获取订单信息
+     * @param userId
+     * @param orderNo
+     * @return
+     */
+    OrderInfo getOrderInfo(Long userId, String orderNo);
+
+    /**
+     * 根据支付方式编号得到支付类型
+     * @param payWay
+     * @return
+     */
+    String getPayWayName(String payWay);
+
+    /**
+     * 根据订单状态编号得到订单状态
+     * @param orderStatus
+     * @return
+     */
+    String getOrderStatusName(String orderStatus);
 }
