@@ -25,4 +25,12 @@ public interface UserAccountMapper extends BaseMapper<UserAccount> {
      * @return
      */
     int lock(@Param("userId") Long userId, @Param("amount") BigDecimal amount);
+
+    /**
+     * 账户扣减
+     * @param userId
+     * @param amount
+     * @return
+     */
+    int minus(@Param("userId") Long userId, @Param("amount") BigDecimal amount);
 }

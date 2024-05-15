@@ -23,10 +23,19 @@
     <!--	账户可用余额锁定-->
     <update id="lock">
         update user_account
-        set lock_amount = lock_amount - #{amount},
-            total_amount = total_amount - #{amount},
+        set lock_amount      = lock_amount - #{amount},
+            total_amount     = total_amount - #{amount},
             total_pay_amount = total_pay_amount + #{amount}
         where user_id = #{userId}
+    </update>
+
+    <!--  账户余额扣减  -->
+    <update id="minus">
+        UPDATE user_account
+        SET lock_amount      = lock_amount - #{amount},
+            total_amount     = total_amount - #{amount},
+            total_pay_amount = total_pay_amount + #{amount}
+            WHERE user_id = #{userId}
     </update>
 
 </mapper>

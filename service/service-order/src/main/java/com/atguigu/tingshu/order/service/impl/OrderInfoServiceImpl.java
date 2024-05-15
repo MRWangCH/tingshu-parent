@@ -5,11 +5,15 @@ import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.IdUtil;
+import com.atguigu.tingshu.account.AccountFeignClient;
 import com.atguigu.tingshu.album.AlbumFeignClient;
+import com.atguigu.tingshu.common.constant.KafkaConstant;
 import com.atguigu.tingshu.common.constant.RedisConstant;
 import com.atguigu.tingshu.common.constant.SystemConstant;
 import com.atguigu.tingshu.common.execption.GuiguException;
+import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.common.result.ResultCodeEnum;
+import com.atguigu.tingshu.common.service.KafkaService;
 import com.atguigu.tingshu.model.album.AlbumInfo;
 import com.atguigu.tingshu.model.album.TrackInfo;
 import com.atguigu.tingshu.model.order.OrderDerate;
@@ -22,6 +26,8 @@ import com.atguigu.tingshu.order.mapper.OrderDetailMapper;
 import com.atguigu.tingshu.order.mapper.OrderInfoMapper;
 import com.atguigu.tingshu.order.service.OrderInfoService;
 import com.atguigu.tingshu.user.client.UserFeignClient;
+import com.atguigu.tingshu.vo.account.AccountLockResultVo;
+import com.atguigu.tingshu.vo.account.AccountLockVo;
 import com.atguigu.tingshu.vo.order.OrderDerateVo;
 import com.atguigu.tingshu.vo.order.OrderDetailVo;
 import com.atguigu.tingshu.vo.order.OrderInfoVo;
@@ -30,6 +36,7 @@ import com.atguigu.tingshu.vo.user.UserInfoVo;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
@@ -64,6 +71,12 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
     @Autowired
     private OrderDerateMapper orderDerateMapper;
+
+    @Autowired
+    private AccountFeignClient accountFeignClient;
+
+    @Autowired
+    private KafkaService kafkaService;
 
 
     /**
@@ -130,13 +143,13 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
             if (userInfo.getIsVip().intValue() == 1 && userInfo.getVipExpireTime().after(DateUtil.date())) {
                 //是vip
                 if (albumInfo.getVipDiscount().intValue() != -1) {
-                    orderAmount = originalAmount.multiply(albumInfo.getVipDiscount()).divide(new BigDecimal(10),2 ,RoundingMode.HALF_UP);
+                    orderAmount = originalAmount.multiply(albumInfo.getVipDiscount()).divide(new BigDecimal(10), 2, RoundingMode.HALF_UP);
                     derateAmount = originalAmount.subtract(orderAmount);
                 }
             } else {
                 if (albumInfo.getDiscount().intValue() != -1) {
                     //普通用户折扣
-                    orderAmount = originalAmount.multiply(albumInfo.getDiscount()).divide(new BigDecimal("10"),2 ,RoundingMode.HALF_UP);
+                    orderAmount = originalAmount.multiply(albumInfo.getDiscount()).divide(new BigDecimal("10"), 2, RoundingMode.HALF_UP);
                     derateAmount = originalAmount.subtract(orderAmount);
                 }
 
@@ -206,6 +219,7 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
     /**
      * 订单提交（余额付款）
+     *
      * @param userId
      * @param orderInfoVo
      * @return
@@ -235,9 +249,18 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
         //4 TODO 处理余额付款 判断支付类型：支付方式：1101-微信 1102-支付宝 1103-账户余额，VIP，声音，专辑都支持余额付款，声音仅支持余额付款
         if (SystemConstant.ORDER_PAY_ACCOUNT.equals(orderInfoVo.getPayWay())) {
             //4.1 远程调用账户服务，以及锁定可用余额
-
+            AccountLockVo accountLockVo = new AccountLockVo();
+            accountLockVo.setOrderNo(orderInfo.getOrderNo());
+            accountLockVo.setUserId(userId);
+            accountLockVo.setAmount(orderInfoVo.getOrderAmount());
+            accountLockVo.setContent(orderInfoVo.getOrderDetailVoList().get(0).getItemName());
+            Result<AccountLockResultVo> lockResult = accountFeignClient.checkAndLock(accountLockVo);
+            if (200 != lockResult.getCode() || lockResult.getData() == null) {
+                log.error("[订单服务]远程调用[账户服务]锁定可用余额失败：业务状态码：{}，信息：{}", lockResult.getCode(), lockResult.getMessage());
+                throw new GuiguException(lockResult.getCode(), lockResult.getMessage());
+            }
             //4.2 锁定成功默认为扣减成功，采用异步mq完成账户扣减
-
+            kafkaService.sendMessage(KafkaConstant.QUEUE_ACCOUNT_MINUS, orderInfo.getOrderNo());
             //4.3 修改订单状态：已支付
 
             //4.4 采用MQ处理用户购买记录
@@ -253,6 +276,7 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
     /**
      * 保存订单以及订单明细，订单优惠明细
+     *
      * @param userId
      * @param orderInfoVo
      * @return

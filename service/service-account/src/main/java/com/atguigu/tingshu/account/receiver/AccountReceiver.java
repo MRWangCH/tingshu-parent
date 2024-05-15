@@ -30,4 +30,17 @@ public class AccountReceiver {
         }
     }
 
+    /**
+     * 监听扣减账户金额消息，完成账户余额扣减
+     * @param record
+     */
+    @KafkaListener(topics = KafkaConstant.QUEUE_ACCOUNT_MINUS)
+    public void accountMinus(ConsumerRecord<String, String> record) {
+        String orderNo = record.value();
+        if (StringUtils.isNotBlank(orderNo)) {
+            log.info("[账户服务]监听到扣减账户余额消息：{}", orderNo);
+            userAccountService.accountMinus(orderNo);
+        }
+    }
+
 }

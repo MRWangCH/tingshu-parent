@@ -128,6 +128,7 @@ public class UserAccountServiceImpl extends ServiceImpl<UserAccountMapper, UserA
 
     /**
      * 保存账户变动日志
+     *
      * @param userId
      * @param title
      * @param tradeType
@@ -143,5 +144,40 @@ public class UserAccountServiceImpl extends ServiceImpl<UserAccountMapper, UserA
         userAccountDetail.setAmount(amount);
         userAccountDetail.setOrderNo(orderNo);
         userAccountDetailMapper.insert(userAccountDetail);
+    }
+
+
+    /**
+     * 账户余额扣减
+     *
+     * @param orderNo
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void accountMinus(String orderNo) {
+        //1 幂等处理，避免同一订单多次扣减余额setnx，同一订单一小时内只能存入redis一次
+        String key = "account:minus:" + orderNo;
+        Boolean flag = redisTemplate.opsForValue().setIfAbsent(key, orderNo, 1, TimeUnit.HOURS);
+        if (flag) {
+            //第一次处理
+            //2 完成账户扣减
+            //2.1 根据订单编号构建锁定结果的key
+            String lockResultKey = RedisConstant.ACCOUNT_CHECK_DATA + orderNo;
+            //2.2 查询redis中锁定结果 得到订单对应：用户id+金额
+            AccountLockResultVo accountLockResultVo = (AccountLockResultVo) redisTemplate.opsForValue().get(lockResultKey);
+            if (accountLockResultVo == null) {
+                //锁定结果失效，删除幂等的key
+                redisTemplate.delete(key);
+                throw new GuiguException(ResultCodeEnum.ACCOUNT_LOCK_RESULT_NULL);
+            }
+            int count = userAccountMapper.minus(accountLockResultVo.getUserId(), accountLockResultVo.getAmount());
+            if (count == 0) {
+                //余额扣减失败
+                redisTemplate.delete(key);
+                throw new GuiguException(ResultCodeEnum.ACCOUNT_LOCK_RESULT_NULL);
+            }
+            //3增加账户变动日志
+            this.saveUserAccountDetail(accountLockResultVo.getUserId(), "扣减：" + accountLockResultVo.getContent(), SystemConstant.ACCOUNT_TRADE_TYPE_MINUS, accountLockResultVo.getAmount(), orderNo);
+        }
     }
 }

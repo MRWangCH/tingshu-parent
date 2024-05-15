@@ -46,4 +46,10 @@ public interface UserAccountService extends IService<UserAccount> {
      * @param orderNo
      */
     void saveUserAccountDetail(Long userId, String title, String tradeType, BigDecimal amount, String orderNo);
+
+    /**
+     * 账户余额扣减
+     * @param orderNo
+     */
+    void accountMinus(String orderNo);
 }
