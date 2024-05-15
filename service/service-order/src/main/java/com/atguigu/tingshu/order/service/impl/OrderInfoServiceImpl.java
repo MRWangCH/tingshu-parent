@@ -262,7 +262,8 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
             //4.2 锁定成功默认为扣减成功，采用异步mq完成账户扣减
             kafkaService.sendMessage(KafkaConstant.QUEUE_ACCOUNT_MINUS, orderInfo.getOrderNo());
             //4.3 修改订单状态：已支付
-
+            orderInfo.setOrderStatus(SystemConstant.ORDER_STATUS_PAID);
+            orderInfoMapper.updateById(orderInfo);
             //4.4 采用MQ处理用户购买记录
 
             //4.5 以上有异常的话，采用MQ回滚
