@@ -5,6 +5,7 @@ import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.IdUtil;
+import com.alibaba.fastjson.JSON;
 import com.atguigu.tingshu.account.AccountFeignClient;
 import com.atguigu.tingshu.album.AlbumFeignClient;
 import com.atguigu.tingshu.common.constant.KafkaConstant;
@@ -33,6 +34,7 @@ import com.atguigu.tingshu.vo.order.OrderDetailVo;
 import com.atguigu.tingshu.vo.order.OrderInfoVo;
 import com.atguigu.tingshu.vo.order.TradeVo;
 import com.atguigu.tingshu.vo.user.UserInfoVo;
+import com.atguigu.tingshu.vo.user.UserPaidRecordVo;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -266,12 +268,20 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
                 orderInfo.setOrderStatus(SystemConstant.ORDER_STATUS_PAID);
                 orderInfoMapper.updateById(orderInfo);
                 //4.4 采用MQ处理用户购买记录
+                UserPaidRecordVo userPaidRecordVo = new UserPaidRecordVo();
+                userPaidRecordVo.setOrderNo(orderInfo.getOrderNo());
+                userPaidRecordVo.setUserId(userId);
+                userPaidRecordVo.setItemType(orderInfoVo.getItemType());
+                List<Long> itemIdList = orderInfoVo.getOrderDetailVoList().stream().map(OrderDetailVo::getItemId).collect(Collectors.toList());
+                userPaidRecordVo.setItemIdList(itemIdList);
+                kafkaService.sendMessage(KafkaConstant.QUEUE_USER_PAY_RECORD, JSON.toJSONString(userPaidRecordVo));
 
-                //4.5 以上有异常的话，采用MQ回滚
             } catch (Exception e) {
+                //4.5 以上有异常的话，采用MQ回滚
                 //以上操作：锁定，扣减，购买记录等业务代码异常，则基于MQ消息进行回滚
                 //5 利用Kafka消息解锁
                 kafkaService.sendMessage(KafkaConstant.QUEUE_ACCOUNT_UNLOCK, orderInfo.getOrderNo());
+                // TODO 利用Kafka消息完成购买记录回滚（删除） 达到事务最终一致性
                 throw new RuntimeException(e);
             }
 

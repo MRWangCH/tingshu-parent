@@ -50,4 +50,10 @@ public class AlbumDegradeFeignClient implements AlbumFeignClient {
         log.error("[专辑模块Feign调用]getWaitPayTrackInfoList异常");
         return null;
     }
+
+    @Override
+    public Result<TrackInfo> getTrackInfo(Long id) {
+        log.error("[专辑模块Feign调用]getTrackInfo异常");
+        return null;
+    }
 }

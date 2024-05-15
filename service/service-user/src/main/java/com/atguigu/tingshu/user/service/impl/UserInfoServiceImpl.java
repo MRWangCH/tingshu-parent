@@ -4,9 +4,12 @@ import cn.binarywang.wx.miniapp.api.WxMaService;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.IdUtil;
+import com.atguigu.tingshu.album.AlbumFeignClient;
 import com.atguigu.tingshu.common.constant.KafkaConstant;
 import com.atguigu.tingshu.common.constant.RedisConstant;
+import com.atguigu.tingshu.common.constant.SystemConstant;
 import com.atguigu.tingshu.common.service.KafkaService;
+import com.atguigu.tingshu.model.album.TrackInfo;
 import com.atguigu.tingshu.model.user.UserInfo;
 import com.atguigu.tingshu.model.user.UserPaidAlbum;
 import com.atguigu.tingshu.model.user.UserPaidTrack;
@@ -15,12 +18,14 @@ import com.atguigu.tingshu.user.mapper.UserPaidAlbumMapper;
 import com.atguigu.tingshu.user.mapper.UserPaidTrackMapper;
 import com.atguigu.tingshu.user.service.UserInfoService;
 import com.atguigu.tingshu.vo.user.UserInfoVo;
+import com.atguigu.tingshu.vo.user.UserPaidRecordVo;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.List;
@@ -50,6 +55,9 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
 
     @Autowired
     private UserPaidTrackMapper userPaidTrackMapper;
+
+    @Autowired
+    private AlbumFeignClient albumFeignClient;
 
     /**
      * 微信登录 采用微信JavaSDK
@@ -191,6 +199,7 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
 
     /**
      * 判断用户是否购买过指定专辑
+     *
      * @param albumId
      * @return
      */
@@ -206,6 +215,7 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
 
     /**
      * 根据专辑id+用户ID获取用户已购买声音id列表
+     *
      * @param albumId
      * @return
      */
@@ -221,5 +231,46 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
             return userPaidTrackList;
         }
         return null;
+    }
+
+    /**
+     * 处理用户购买记录
+     * 1 处理声音购买记录-根据订单编号避免重复增加购买记录
+     * 2 处理专辑购买记录-根据订单编号避免重复增加购买记录
+     * 3 处理会员购买记录
+     * -根据订单编号避免重复购买记录
+     * -修改用户表vip状态以及失效时间
+     *
+     * @param userPaidRecordVo
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public void saveUserPayRecord(UserPaidRecordVo userPaidRecordVo) {
+        //1 处理声音购买记录-根据订单编号避免重复增加购买记录
+        if (SystemConstant.ORDER_ITEM_TYPE_TRACK.equals(userPaidRecordVo.getItemType())) {
+            //1.1 根据订单编号避免重复增加购买记录
+            LambdaQueryWrapper<UserPaidTrack> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(UserPaidTrack::getOrderNo, userPaidRecordVo.getOrderNo());
+            Long count = userPaidTrackMapper.selectCount(queryWrapper);
+            if (count > 0) {
+                return;
+            }
+            //1.2 构建新增购买记录
+            //1.3 远程调用专辑服务获取声音所属的专辑
+            TrackInfo trackInfo = albumFeignClient.getTrackInfo(userPaidRecordVo.getItemIdList().get(0)).getData();
+            userPaidRecordVo.getItemIdList().forEach(trackId -> {
+                UserPaidTrack userPaidTrack = new UserPaidTrack();
+                userPaidTrack.setOrderNo(userPaidRecordVo.getOrderNo());
+                userPaidTrack.setUserId(userPaidRecordVo.getUserId());
+                userPaidTrack.setAlbumId(trackInfo.getAlbumId());
+                userPaidTrack.setTrackId(trackId);
+                userPaidTrackMapper.insert(userPaidTrack);
+            });
+        }
+
+        //2 处理专辑购买记录-根据订单编号避免重复增加购买记录
+        //3 处理会员购买记录
+        //3.1 根据订单编号避免重复购买记录
+        //3.2 修改用户表vip状态以及失效时间
     }
 }
