@@ -9,6 +9,7 @@ import com.atguigu.tingshu.common.constant.KafkaConstant;
 import com.atguigu.tingshu.common.constant.RedisConstant;
 import com.atguigu.tingshu.common.constant.SystemConstant;
 import com.atguigu.tingshu.common.service.KafkaService;
+import com.atguigu.tingshu.model.album.AlbumInfo;
 import com.atguigu.tingshu.model.album.TrackInfo;
 import com.atguigu.tingshu.model.user.UserInfo;
 import com.atguigu.tingshu.model.user.UserPaidAlbum;
@@ -266,9 +267,24 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
                 userPaidTrack.setTrackId(trackId);
                 userPaidTrackMapper.insert(userPaidTrack);
             });
+        } else if (SystemConstant.ORDER_ITEM_TYPE_ALBUM.equals(userPaidRecordVo.getItemType())) {
+            //2 处理专辑购买记录-根据订单编号避免重复增加购买记录
+            //2.1 根据订单编号避免重复增加购买记录
+            LambdaQueryWrapper<UserPaidAlbum> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(UserPaidAlbum::getOrderNo, userPaidRecordVo.getOrderNo());
+            Long count = userPaidAlbumMapper.selectCount(queryWrapper);
+            if (count > 0) {
+                return;
+            }
+            //2.2 新增专辑购买记录
+            userPaidRecordVo.getItemIdList().forEach(albumId -> {
+                UserPaidAlbum userPaidAlbum = new UserPaidAlbum();
+                userPaidAlbum.setOrderNo(userPaidRecordVo.getOrderNo());
+                userPaidAlbum.setUserId(userPaidRecordVo.getUserId());
+                userPaidAlbum.setAlbumId(albumId);
+                userPaidAlbumMapper.insert(userPaidAlbum);
+            });
         }
-
-        //2 处理专辑购买记录-根据订单编号避免重复增加购买记录
         //3 处理会员购买记录
         //3.1 根据订单编号避免重复购买记录
         //3.2 修改用户表vip状态以及失效时间
