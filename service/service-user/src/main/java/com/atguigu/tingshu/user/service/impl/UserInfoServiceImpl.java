@@ -3,20 +3,16 @@ package com.atguigu.tingshu.user.service.impl;
 import cn.binarywang.wx.miniapp.api.WxMaService;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollectionUtil;
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.IdUtil;
 import com.atguigu.tingshu.album.AlbumFeignClient;
 import com.atguigu.tingshu.common.constant.KafkaConstant;
 import com.atguigu.tingshu.common.constant.RedisConstant;
 import com.atguigu.tingshu.common.constant.SystemConstant;
 import com.atguigu.tingshu.common.service.KafkaService;
-import com.atguigu.tingshu.model.album.AlbumInfo;
 import com.atguigu.tingshu.model.album.TrackInfo;
-import com.atguigu.tingshu.model.user.UserInfo;
-import com.atguigu.tingshu.model.user.UserPaidAlbum;
-import com.atguigu.tingshu.model.user.UserPaidTrack;
-import com.atguigu.tingshu.user.mapper.UserInfoMapper;
-import com.atguigu.tingshu.user.mapper.UserPaidAlbumMapper;
-import com.atguigu.tingshu.user.mapper.UserPaidTrackMapper;
+import com.atguigu.tingshu.model.user.*;
+import com.atguigu.tingshu.user.mapper.*;
 import com.atguigu.tingshu.user.service.UserInfoService;
 import com.atguigu.tingshu.vo.user.UserInfoVo;
 import com.atguigu.tingshu.vo.user.UserPaidRecordVo;
@@ -28,6 +24,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +56,12 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
 
     @Autowired
     private AlbumFeignClient albumFeignClient;
+
+    @Autowired
+    private UserVipServiceMapper userVipServiceMapper;
+
+    @Autowired
+    private VipServiceConfigMapper vipServiceConfigMapper;
 
     /**
      * 微信登录 采用微信JavaSDK
@@ -284,9 +287,45 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
                 userPaidAlbum.setAlbumId(albumId);
                 userPaidAlbumMapper.insert(userPaidAlbum);
             });
+        } else if (SystemConstant.ORDER_ITEM_TYPE_VIP.equals(userPaidRecordVo.getItemType())) {
+            //3 处理会员购买记录
+            //3.1 根据订单编号避免重复购买记录
+            LambdaQueryWrapper<UserVipService> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(UserVipService::getOrderNo, userPaidRecordVo.getOrderNo());
+            Long count = userVipServiceMapper.selectCount(queryWrapper);
+            if (count > 0) {
+                return;
+            }
+            //3.2 修改用户表vip状态以及失效时间
+            Date startTime = new Date();
+            Date expireTime = new Date();
+            //用户信息
+            UserInfo userInfo = userInfoMapper.selectById(userPaidRecordVo.getUserId());
+            //vip套餐信息
+            VipServiceConfig vipServiceConfig = vipServiceConfigMapper.selectById(userPaidRecordVo.getItemIdList().get(0));
+            //刚购买vip，开始时间就为当前，过期时间：当前时间+购买时间
+            //已经是vip且还在有效期内，过期时间：现有失效时间+购买月数
+            if (userInfo.getIsVip() == 1 && userInfo.getVipExpireTime().after(new Date())) {
+                expireTime = DateUtil.offsetMonth(userInfo.getVipExpireTime(), vipServiceConfig.getServiceMonth());
+            } else {
+                //首次购买会员
+                expireTime = DateUtil.offsetMonth(startTime, vipServiceConfig.getServiceMonth());
+            }
+            userInfo.setIsVip(1);
+            userInfo.setVipExpireTime(expireTime);
+            userInfoMapper.updateById(userInfo);
+
+            //3.3 新增用户vip购买记录
+            for (Long vipConfigId : userPaidRecordVo.getItemIdList()) {
+                UserVipService userVipService = new UserVipService();
+                userVipService.setOrderNo(userPaidRecordVo.getOrderNo());
+                userVipService.setUserId(userPaidRecordVo.getUserId());
+                userVipService.setStartTime(startTime);
+                userVipService.setExpireTime(expireTime);
+                userVipService.setIsAutoRenew(0);
+                userVipService.setNextRenewTime(null);
+                userVipServiceMapper.insert(userVipService);
+            }
         }
-        //3 处理会员购买记录
-        //3.1 根据订单编号避免重复购买记录
-        //3.2 修改用户表vip状态以及失效时间
     }
 }
