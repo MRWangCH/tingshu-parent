@@ -1,12 +1,15 @@
 package com.atguigu.tingshu.account.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.atguigu.tingshu.account.mapper.UserAccountDetailMapper;
 import com.atguigu.tingshu.account.mapper.UserAccountMapper;
 import com.atguigu.tingshu.account.service.UserAccountService;
 import com.atguigu.tingshu.common.constant.RedisConstant;
+import com.atguigu.tingshu.common.constant.SystemConstant;
 import com.atguigu.tingshu.common.execption.GuiguException;
 import com.atguigu.tingshu.common.result.ResultCodeEnum;
 import com.atguigu.tingshu.model.account.UserAccount;
+import com.atguigu.tingshu.model.account.UserAccountDetail;
 import com.atguigu.tingshu.vo.account.AccountLockResultVo;
 import com.atguigu.tingshu.vo.account.AccountLockVo;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -30,6 +33,9 @@ public class UserAccountServiceImpl extends ServiceImpl<UserAccountMapper, UserA
 
     @Autowired
     private RedisTemplate redisTemplate;
+
+    @Autowired
+    private UserAccountDetailMapper userAccountDetailMapper;
 
     /**
      * 初始化账户余额
@@ -114,7 +120,28 @@ public class UserAccountServiceImpl extends ServiceImpl<UserAccountMapper, UserA
         AccountLockResultVo accountLockResultVo = BeanUtil.copyProperties(accountLockVo, AccountLockResultVo.class);
         redisTemplate.opsForValue().set(lockResultKey, accountLockResultVo, 1, TimeUnit.HOURS);
 
+        //5 新增账户变动日志
+        this.saveUserAccountDetail(accountLockVo.getUserId(), "锁定" + accountLockVo.getContent(), SystemConstant.ACCOUNT_TRADE_TYPE_LOCK, accountLockVo.getAmount(), accountLockVo.getOrderNo());
         //5 将锁定结果返回
         return accountLockResultVo;
+    }
+
+    /**
+     * 保存账户变动日志
+     * @param userId
+     * @param title
+     * @param tradeType
+     * @param amount
+     * @param orderNo
+     */
+    @Override
+    public void saveUserAccountDetail(Long userId, String title, String tradeType, BigDecimal amount, String orderNo) {
+        UserAccountDetail userAccountDetail = new UserAccountDetail();
+        userAccountDetail.setUserId(userId);
+        userAccountDetail.setTitle(title);
+        userAccountDetail.setTradeType(tradeType);
+        userAccountDetail.setAmount(amount);
+        userAccountDetail.setOrderNo(orderNo);
+        userAccountDetailMapper.insert(userAccountDetail);
     }
 }

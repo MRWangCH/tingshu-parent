@@ -36,4 +36,14 @@ public interface UserAccountService extends IService<UserAccount> {
      * @return
      */
     AccountLockResultVo checkAndLock(Long userId, AccountLockVo accountLockVo);
+
+    /**
+     * 保存账户变动日志
+     * @param userId
+     * @param title
+     * @param tradeType
+     * @param amount
+     * @param orderNo
+     */
+    void saveUserAccountDetail(Long userId, String title, String tradeType, BigDecimal amount, String orderNo);
 }
