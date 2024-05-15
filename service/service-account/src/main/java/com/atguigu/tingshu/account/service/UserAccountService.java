@@ -52,4 +52,10 @@ public interface UserAccountService extends IService<UserAccount> {
      * @param orderNo
      */
     void accountMinus(String orderNo);
+
+    /**
+     * 账户余额解锁
+     * @param orderNo
+     */
+    void accountUnlock(String orderNo);
 }

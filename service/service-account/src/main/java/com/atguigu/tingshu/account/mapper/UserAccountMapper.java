@@ -33,4 +33,12 @@ public interface UserAccountMapper extends BaseMapper<UserAccount> {
      * @return
      */
     int minus(@Param("userId") Long userId, @Param("amount") BigDecimal amount);
+
+    /**
+     * 解锁账户
+     * @param userId
+     * @param amount
+     * @return
+     */
+    int unlock(@Param("userId") Long userId, @Param("amount") BigDecimal amount);
 }

@@ -37,5 +37,13 @@
         WHERE user_id = #{userId}
     </update>
 
+    <!--  账户余额解锁  -->
+    <update id="unlock">
+        UPDATE user_account
+        set lock_amount      = lock_amount - #{amount},
+            available_amount = available_amount + #{amount}
+        where user_id = #{userId}
+    </update>
+
 </mapper>
 

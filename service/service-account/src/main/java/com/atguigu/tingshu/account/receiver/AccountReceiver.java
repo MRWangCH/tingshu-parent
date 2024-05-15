@@ -43,4 +43,17 @@ public class AccountReceiver {
         }
     }
 
+    /**
+     * 监听解锁账户金额消息，完成账户余额恢复
+     * @param record
+     */
+    @KafkaListener(topics = KafkaConstant.QUEUE_ACCOUNT_UNLOCK)
+    public void accountUnlock(ConsumerRecord<String, String> record) {
+        String orderNo = record.value();
+        if (StringUtils.isNotBlank(orderNo)) {
+            log.info("[账户服务]监听到解锁账户金额消息：{}", orderNo);
+            userAccountService.accountUnlock(orderNo);
+        }
+    }
+
 }

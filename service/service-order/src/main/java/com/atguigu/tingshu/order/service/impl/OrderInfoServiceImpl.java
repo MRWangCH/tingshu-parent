@@ -248,25 +248,32 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
         OrderInfo orderInfo = this.saveOrder(userId, orderInfoVo);
         //4 TODO 处理余额付款 判断支付类型：支付方式：1101-微信 1102-支付宝 1103-账户余额，VIP，声音，专辑都支持余额付款，声音仅支持余额付款
         if (SystemConstant.ORDER_PAY_ACCOUNT.equals(orderInfoVo.getPayWay())) {
-            //4.1 远程调用账户服务，以及锁定可用余额
-            AccountLockVo accountLockVo = new AccountLockVo();
-            accountLockVo.setOrderNo(orderInfo.getOrderNo());
-            accountLockVo.setUserId(userId);
-            accountLockVo.setAmount(orderInfoVo.getOrderAmount());
-            accountLockVo.setContent(orderInfoVo.getOrderDetailVoList().get(0).getItemName());
-            Result<AccountLockResultVo> lockResult = accountFeignClient.checkAndLock(accountLockVo);
-            if (200 != lockResult.getCode() || lockResult.getData() == null) {
-                log.error("[订单服务]远程调用[账户服务]锁定可用余额失败：业务状态码：{}，信息：{}", lockResult.getCode(), lockResult.getMessage());
-                throw new GuiguException(lockResult.getCode(), lockResult.getMessage());
-            }
-            //4.2 锁定成功默认为扣减成功，采用异步mq完成账户扣减
-            kafkaService.sendMessage(KafkaConstant.QUEUE_ACCOUNT_MINUS, orderInfo.getOrderNo());
-            //4.3 修改订单状态：已支付
-            orderInfo.setOrderStatus(SystemConstant.ORDER_STATUS_PAID);
-            orderInfoMapper.updateById(orderInfo);
-            //4.4 采用MQ处理用户购买记录
+            try {
+                //4.1 远程调用账户服务，以及锁定可用余额
+                AccountLockVo accountLockVo = new AccountLockVo();
+                accountLockVo.setOrderNo(orderInfo.getOrderNo());
+                accountLockVo.setUserId(userId);
+                accountLockVo.setAmount(orderInfoVo.getOrderAmount());
+                accountLockVo.setContent(orderInfoVo.getOrderDetailVoList().get(0).getItemName());
+                Result<AccountLockResultVo> lockResult = accountFeignClient.checkAndLock(accountLockVo);
+                if (200 != lockResult.getCode() || lockResult.getData() == null) {
+                    log.error("[订单服务]远程调用[账户服务]锁定可用余额失败：业务状态码：{}，信息：{}", lockResult.getCode(), lockResult.getMessage());
+                    throw new GuiguException(lockResult.getCode(), lockResult.getMessage());
+                }
+                //4.2 锁定成功默认为扣减成功，采用异步mq完成账户扣减
+                kafkaService.sendMessage(KafkaConstant.QUEUE_ACCOUNT_MINUS, orderInfo.getOrderNo());
+                //4.3 修改订单状态：已支付
+                orderInfo.setOrderStatus(SystemConstant.ORDER_STATUS_PAID);
+                orderInfoMapper.updateById(orderInfo);
+                //4.4 采用MQ处理用户购买记录
 
-            //4.5 以上有异常的话，采用MQ回滚
+                //4.5 以上有异常的话，采用MQ回滚
+            } catch (Exception e) {
+                //以上操作：锁定，扣减，购买记录等业务代码异常，则基于MQ消息进行回滚
+                //5 利用Kafka消息解锁
+                kafkaService.sendMessage(KafkaConstant.QUEUE_ACCOUNT_UNLOCK, orderInfo.getOrderNo());
+                throw new RuntimeException(e);
+            }
 
         }
         //5 封装订单编号到map

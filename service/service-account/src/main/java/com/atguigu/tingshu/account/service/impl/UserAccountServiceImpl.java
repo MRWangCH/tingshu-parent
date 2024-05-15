@@ -180,4 +180,39 @@ public class UserAccountServiceImpl extends ServiceImpl<UserAccountMapper, UserA
             this.saveUserAccountDetail(accountLockResultVo.getUserId(), "扣减：" + accountLockResultVo.getContent(), SystemConstant.ACCOUNT_TRADE_TYPE_MINUS, accountLockResultVo.getAmount(), orderNo);
         }
     }
+
+    /**
+     * 账户余额解锁
+     *
+     * @param orderNo
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void accountUnlock(String orderNo) {
+        //1 幂等性处理，避免多次解锁
+        String key = "account:unlock:" + orderNo;
+        Boolean flag = redisTemplate.opsForValue().setIfAbsent(key, orderNo, 1, TimeUnit.HOURS);
+        if (flag) {
+            //2 账户锁定金额恢复
+            //2.1 获取redis中记录锁定结果
+            String lockKeyResult = RedisConstant.ACCOUNT_CHECK_DATA + orderNo;
+            AccountLockResultVo accountLockResultVo = (AccountLockResultVo) redisTemplate.opsForValue().get(lockKeyResult);
+            if (accountLockResultVo == null) {
+                //删除重复锁定key抛出异常
+                redisTemplate.delete(key);
+                throw new GuiguException(ResultCodeEnum.ACCOUNT_LOCK_RESULT_NULL);
+            }
+            //2.2 完成账户解锁
+            int count = userAccountMapper.unlock(accountLockResultVo.getUserId(), accountLockResultVo.getAmount());
+            if (count == 0) {
+                //删除重复锁定key抛出异常
+                redisTemplate.delete(key);
+                throw new GuiguException(ResultCodeEnum.ACCOUNT_UNLOCK_ERROR);
+            }
+            //3 记录账户变更日志
+            this.saveUserAccountDetail(accountLockResultVo.getUserId(), "恢复：" + accountLockResultVo.getContent(), SystemConstant.ACCOUNT_TRADE_TYPE_UNLOCK, accountLockResultVo.getAmount(), orderNo);
+            //4 删除redis中锁定结果
+            redisTemplate.delete(lockKeyResult);
+        }
+    }
 }
