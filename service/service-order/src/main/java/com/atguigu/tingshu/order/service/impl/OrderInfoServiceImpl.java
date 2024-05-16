@@ -299,7 +299,7 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
         map.put("orderNo", orderInfo.getOrderNo());
 
         //6 发送延迟消息：延迟关闭订单
-        this.sendDealyMessage(orderInfo.getId().toString(), 10, TimeUnit.SECONDS);
+        this.sendDealyMessage(orderInfo.getId().toString(), 10, TimeUnit.MINUTES);
         return map;
     }
 
