@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public interface OrderInfoService extends IService<OrderInfo> {
 
@@ -63,4 +64,18 @@ public interface OrderInfoService extends IService<OrderInfo> {
      * @return
      */
     Page<OrderInfo> getUserOrderByPage(Long userId, Page<OrderInfo> pageInfo);
+
+    /**
+     * 发送延迟消息：延迟关闭订单
+     * @param msg
+     * @param ttl
+     * @param timeUnit
+     */
+    void sendDealyMessage(String msg, int ttl, TimeUnit timeUnit);
+
+    /**
+     * 取消订单
+     * @param orderId
+     */
+    void orderCancle(String orderId);
 }

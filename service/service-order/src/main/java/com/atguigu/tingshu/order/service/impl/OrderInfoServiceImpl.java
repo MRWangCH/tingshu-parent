@@ -39,6 +39,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RBlockingDeque;
+import org.redisson.api.RDelayedQueue;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -81,6 +84,9 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
     @Autowired
     private KafkaService kafkaService;
+
+    @Autowired
+    private RedissonClient redissonClient;
 
 
     /**
@@ -291,6 +297,9 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
         //5 封装订单编号到map
         Map<String, String> map = new HashMap<>();
         map.put("orderNo", orderInfo.getOrderNo());
+
+        //6 发送延迟消息：延迟关闭订单
+        this.sendDealyMessage(orderInfo.getId().toString(), 10, TimeUnit.SECONDS);
         return map;
     }
 
@@ -422,5 +431,45 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
             orderInfo.setPayWay(this.getPayWayName(orderInfo.getPayWay()));
         });
         return pageInfo;
+    }
+
+
+    /**
+     * 发送延迟消息：延迟关闭订单
+     *
+     * @param msg
+     * @param ttl
+     * @param timeUnit
+     */
+    @Override
+    public void sendDealyMessage(String msg, int ttl, TimeUnit timeUnit) {
+        try {
+            //1 基于Redissonclient对象创建阻塞队列
+            RBlockingDeque<String> blockingDeque = redissonClient.getBlockingDeque(KafkaConstant.QUEUE_ORDER_CANCEL);
+            //2 基于Redissonclient对象将阻塞队列作为参数创建延迟队列
+            RDelayedQueue<String> delayedQueue = redissonClient.getDelayedQueue(blockingDeque);
+            //3 调用延迟队列方法发送消息
+            delayedQueue.offer(msg, ttl, timeUnit);
+            log.info("[订单]延迟消息发送成功");
+        } catch (Exception e) {
+            log.error("[订单]延迟消息发送失败：{}", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * 取消订单
+     *
+     * @param orderId
+     */
+    @Override
+    public void orderCancle(String orderId) {
+        //1 根据id查询订单信息
+        OrderInfo orderInfo = orderInfoMapper.selectById(Long.valueOf(orderId));
+        if (orderInfo !=null && SystemConstant.ORDER_STATUS_UNPAID.equals(orderInfo.getOrderStatus())) {
+            orderInfo.setOrderStatus(SystemConstant.ORDER_STATUS_CANCEL);
+            orderInfoMapper.updateById(orderInfo);
+        }
+        //2 如果订单未支付，取消订单
     }
 }
