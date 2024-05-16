@@ -36,6 +36,7 @@ import com.atguigu.tingshu.vo.order.TradeVo;
 import com.atguigu.tingshu.vo.user.UserInfoVo;
 import com.atguigu.tingshu.vo.user.UserPaidRecordVo;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -389,6 +390,7 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
     /**
      * 根据订单状态编号得到订单状态
+     *
      * @param orderStatus
      * @return
      */
@@ -402,5 +404,23 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
             return "取消支付";
         }
         return "";
+    }
+
+    /**
+     * 订单分页列表
+     *
+     * @param userId
+     * @param pageInfo
+     * @return
+     */
+    @Override
+    public Page<OrderInfo> getUserOrderByPage(Long userId, Page<OrderInfo> pageInfo) {
+        pageInfo = orderInfoMapper.getUserOrderByPage(pageInfo, userId);
+        //设置订单状态以及支付方式
+        pageInfo.getRecords().forEach(orderInfo -> {
+            orderInfo.setOrderStatusName(this.getOrderStatusName(orderInfo.getOrderStatus()));
+            orderInfo.setPayWay(this.getPayWayName(orderInfo.getPayWay()));
+        });
+        return pageInfo;
     }
 }
