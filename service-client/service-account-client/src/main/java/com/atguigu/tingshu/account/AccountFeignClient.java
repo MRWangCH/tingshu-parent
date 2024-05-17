@@ -3,9 +3,12 @@ package com.atguigu.tingshu.account;
 import com.atguigu.tingshu.account.impl.AccountDegradeFeignClient;
 import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.common.util.AuthContextHolder;
+import com.atguigu.tingshu.model.account.RechargeInfo;
 import com.atguigu.tingshu.vo.account.AccountLockResultVo;
 import com.atguigu.tingshu.vo.account.AccountLockVo;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -26,4 +29,14 @@ public interface AccountFeignClient {
      */
     @PostMapping("/userAccount/checkAndLock")
     public Result<AccountLockResultVo> checkAndLock(@RequestBody AccountLockVo accountLockVo);
+
+
+    /**
+     * 根据订单号获取充值记录的信息
+     *
+     * @param orderNo
+     * @return
+     */
+    @GetMapping("/rechargeInfo/getRechargeInfo/{orderNo}")
+    public Result<RechargeInfo> getRechargeInfoByOrderNo(@PathVariable String orderNo);
 }

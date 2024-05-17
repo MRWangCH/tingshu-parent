@@ -2,6 +2,8 @@ package com.atguigu.tingshu.payment.service.impl;
 
 import com.atguigu.tingshu.account.AccountFeignClient;
 import com.atguigu.tingshu.common.constant.SystemConstant;
+import com.atguigu.tingshu.model.account.RechargeInfo;
+import com.atguigu.tingshu.model.order.OrderInfo;
 import com.atguigu.tingshu.model.payment.PaymentInfo;
 import com.atguigu.tingshu.order.client.OrderFeignClient;
 import com.atguigu.tingshu.payment.mapper.PaymentInfoMapper;
@@ -49,13 +51,15 @@ public class PaymentInfoServiceImpl extends ServiceImpl<PaymentInfoMapper, Payme
         if (SystemConstant.PAYMENT_TYPE_ORDER.equals(paymentType)) {
             //2.1 判断支付类型-处理订单-查询订单信息得到金额
             //远程调用订单服务
-            paymentInfo.setAmount();
-            paymentInfo.setContent();
+            OrderInfo orderInfo = orderFeignClient.getOrderInfo(orderNo).getData();
+            paymentInfo.setAmount(orderInfo.getOrderAmount());
+            paymentInfo.setContent(orderInfo.getOrderTitle());
         } else if (SystemConstant.PAYMENT_TYPE_RECHARGE.equals(paymentType)) {
             //2.2 判断支付类型-处理充值-查询充值信息得到金额
             //远程调用账户服务
-            paymentInfo.setAmount();
-            paymentInfo.setContent();
+            RechargeInfo rechargeInfo = accountFeignClient.getRechargeInfoByOrderNo(orderNo).getData();
+            paymentInfo.setAmount(rechargeInfo.getRechargeAmount());
+            paymentInfo.setContent("充值");
         }
 
         //支付平台的交易编号-得到支付平台回调结果
