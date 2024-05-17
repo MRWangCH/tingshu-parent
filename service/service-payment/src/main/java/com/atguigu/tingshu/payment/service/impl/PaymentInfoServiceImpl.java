@@ -2,6 +2,8 @@ package com.atguigu.tingshu.payment.service.impl;
 
 import com.atguigu.tingshu.account.AccountFeignClient;
 import com.atguigu.tingshu.common.constant.SystemConstant;
+import com.atguigu.tingshu.common.execption.GuiguException;
+import com.atguigu.tingshu.common.result.ResultCodeEnum;
 import com.atguigu.tingshu.model.account.RechargeInfo;
 import com.atguigu.tingshu.model.order.OrderInfo;
 import com.atguigu.tingshu.model.payment.PaymentInfo;
@@ -41,26 +43,32 @@ public class PaymentInfoServiceImpl extends ServiceImpl<PaymentInfoMapper, Payme
         if (paymentInfo != null) {
             return paymentInfo;
         }
-        //2 构建本集交易记录保存-设置每个属性赋值
         paymentInfo = new PaymentInfo();
-        paymentInfo.setUserId(userId);
-        paymentInfo.setPaymentType(paymentType);
-        paymentInfo.setOrderNo(orderNo);
-        paymentInfo.setPayWay(SystemConstant.ORDER_PAY_WAY_WEIXIN);
-        paymentInfo.setPaymentStatus(SystemConstant.PAYMENT_STATUS_UNPAID);
         if (SystemConstant.PAYMENT_TYPE_ORDER.equals(paymentType)) {
             //2.1 判断支付类型-处理订单-查询订单信息得到金额
             //远程调用订单服务
             OrderInfo orderInfo = orderFeignClient.getOrderInfo(orderNo).getData();
+            if (!SystemConstant.ORDER_STATUS_UNPAID.equals(orderInfo.getOrderStatus())) {
+                throw new GuiguException(ResultCodeEnum.ARGUMENT_VALID_ERROR);
+            }
             paymentInfo.setAmount(orderInfo.getOrderAmount());
             paymentInfo.setContent(orderInfo.getOrderTitle());
         } else if (SystemConstant.PAYMENT_TYPE_RECHARGE.equals(paymentType)) {
             //2.2 判断支付类型-处理充值-查询充值信息得到金额
             //远程调用账户服务
             RechargeInfo rechargeInfo = accountFeignClient.getRechargeInfoByOrderNo(orderNo).getData();
+            if (!SystemConstant.ORDER_STATUS_UNPAID.equals(rechargeInfo.getRechargeStatus())) {
+                throw new GuiguException(ResultCodeEnum.ARGUMENT_VALID_ERROR);
+            }
             paymentInfo.setAmount(rechargeInfo.getRechargeAmount());
             paymentInfo.setContent("充值");
         }
+        //2 构建本集交易记录保存-设置每个属性赋值
+        paymentInfo.setUserId(userId);
+        paymentInfo.setPaymentType(paymentType);
+        paymentInfo.setOrderNo(orderNo);
+        paymentInfo.setPayWay(SystemConstant.ORDER_PAY_WAY_WEIXIN);
+        paymentInfo.setPaymentStatus(SystemConstant.PAYMENT_STATUS_UNPAID);
 
         //支付平台的交易编号-得到支付平台回调结果
         //paymentInfo.setOutTradeNo();

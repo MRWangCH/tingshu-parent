@@ -1,6 +1,7 @@
 package com.atguigu.tingshu.payment.config;
 
 import com.wechat.pay.java.core.RSAAutoCertificateConfig;
+import com.wechat.pay.java.service.payments.jsapi.JsapiServiceExtension;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -31,5 +32,14 @@ public class WxPayV3Config {
                 .merchantSerialNumber(merchantSerialNumber)
                 .apiV3Key(apiV3key)
                 .build();
+    }
+
+    /**
+     * 调用jsApi在app或者小程序中拉起微信支付
+     * @return
+     */
+    @Bean
+    public JsapiServiceExtension service() {
+        return new JsapiServiceExtension.Builder().config(rsaAutoCertificateConfig()).build();
     }
 }
