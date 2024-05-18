@@ -13,4 +13,10 @@ public interface PaymentInfoService extends IService<PaymentInfo> {
      * @return
      */
     PaymentInfo savePaymentInfo(String paymentType, String orderNo, Long userId);
+
+    /**
+     * 更新本地交易记录的状态：改为支付成功
+     * @param orderNo
+     */
+    void updatePaymentInfo(String orderNo);
 }

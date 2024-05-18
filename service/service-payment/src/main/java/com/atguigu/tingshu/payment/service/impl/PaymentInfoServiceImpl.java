@@ -1,9 +1,11 @@
 package com.atguigu.tingshu.payment.service.impl;
 
 import com.atguigu.tingshu.account.AccountFeignClient;
+import com.atguigu.tingshu.common.constant.KafkaConstant;
 import com.atguigu.tingshu.common.constant.SystemConstant;
 import com.atguigu.tingshu.common.execption.GuiguException;
 import com.atguigu.tingshu.common.result.ResultCodeEnum;
+import com.atguigu.tingshu.common.service.KafkaService;
 import com.atguigu.tingshu.model.account.RechargeInfo;
 import com.atguigu.tingshu.model.order.OrderInfo;
 import com.atguigu.tingshu.model.payment.PaymentInfo;
@@ -24,6 +26,9 @@ public class PaymentInfoServiceImpl extends ServiceImpl<PaymentInfoMapper, Payme
 
     @Autowired
     private AccountFeignClient accountFeignClient;
+
+    @Autowired
+    private KafkaService kafkaService;
 
 
     /**
@@ -76,5 +81,30 @@ public class PaymentInfoServiceImpl extends ServiceImpl<PaymentInfoMapper, Payme
         //paymentInfo.setCallbackContent();
         this.save(paymentInfo);
         return paymentInfo;
+    }
+
+    /**
+     * 更新本地交易记录的状态：改为支付成功，基于MQ更新订单状态，充值购买记录
+     *
+     * @param orderNo
+     */
+    @Override
+    public void updatePaymentInfo(String orderNo) {
+        //1 根据订单编号查询本地记录，如果本地交易记录已支付说明更新过不处理
+        LambdaQueryWrapper<PaymentInfo> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(PaymentInfo::getOrderNo, orderNo);
+        PaymentInfo paymentInfo = this.getOne(queryWrapper);
+        if (paymentInfo != null && SystemConstant.PAYMENT_STATUS_PAID.equals(paymentInfo.getPaymentStatus())) {
+            return;
+        }
+        //更新本地交易记录的状态
+        paymentInfo.setPaymentStatus(SystemConstant.PAYMENT_STATUS_PAID);
+        this.updateById(paymentInfo);
+
+        //2 利用MQ更新订单支付状态，充值记录状态
+        //2.1 本地交易记录获取支付类型：1301-订单，1302-充值 动态得到目标话题名称
+        String topic = paymentInfo.getPaymentStatus().equals(SystemConstant.PAYMENT_TYPE_ORDER) ? KafkaConstant.QUEUE_ORDER_PAY_SUCCESS : KafkaConstant.QUEUE_RECHARGE_PAY_SUCCESS;
+        //2.2 发送消息到指定话题
+        kafkaService.sendMessage(topic, orderNo);
     }
 }

@@ -158,6 +158,7 @@ public class WxPayServiceImpl implements WxPayService {
             Transaction transaction = parser.parse(requestParam, Transaction.class);
             if (transaction != null && transaction.getTradeState() == Transaction.TradeStateEnum.SUCCESS) {
                 //3 根据支付结果处理后续：本地交易记录，订单，购买记录
+                paymentInfoService.updatePaymentInfo(transaction.getOutTradeNo());
                 Map<String, String> map = new HashMap<>();
                 map.put("code", "SUCCESS");
                 map.put("message", "SUCCESS");
