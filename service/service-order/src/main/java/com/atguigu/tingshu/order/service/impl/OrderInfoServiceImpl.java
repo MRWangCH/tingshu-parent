@@ -256,7 +256,7 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
         }
         //3 保存订单以及订单明细，订单优惠明细
         OrderInfo orderInfo = this.saveOrder(userId, orderInfoVo);
-        //4 TODO 处理余额付款 判断支付类型：支付方式：1101-微信 1102-支付宝 1103-账户余额，VIP，声音，专辑都支持余额付款，声音仅支持余额付款
+        //4 处理余额付款 判断支付类型：支付方式：1101-微信 1102-支付宝 1103-账户余额，VIP，声音，专辑都支持余额付款，声音仅支持余额付款
         if (SystemConstant.ORDER_PAY_ACCOUNT.equals(orderInfoVo.getPayWay())) {
             try {
                 //4.1 远程调用账户服务，以及锁定可用余额
@@ -289,7 +289,7 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
                 //以上操作：锁定，扣减，购买记录等业务代码异常，则基于MQ消息进行回滚
                 //5 利用Kafka消息解锁
                 kafkaService.sendMessage(KafkaConstant.QUEUE_ACCOUNT_UNLOCK, orderInfo.getOrderNo());
-                // TODO 利用Kafka消息完成购买记录回滚（删除） 达到事务最终一致性
+                // 利用Kafka消息完成购买记录回滚（删除） 达到事务最终一致性
                 throw new RuntimeException(e);
             }
 
@@ -466,10 +466,38 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
     public void orderCancle(String orderId) {
         //1 根据id查询订单信息
         OrderInfo orderInfo = orderInfoMapper.selectById(Long.valueOf(orderId));
-        if (orderInfo !=null && SystemConstant.ORDER_STATUS_UNPAID.equals(orderInfo.getOrderStatus())) {
+        //2 如果订单未支付，取消订单
+        if (orderInfo != null && SystemConstant.ORDER_STATUS_UNPAID.equals(orderInfo.getOrderStatus())) {
             orderInfo.setOrderStatus(SystemConstant.ORDER_STATUS_CANCEL);
             orderInfoMapper.updateById(orderInfo);
         }
-        //2 如果订单未支付，取消订单
+    }
+
+    /**
+     * 更新订单状态未已支付，基于MQ异步新增用户购买记录
+     *
+     * @param orderNo
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void orderPaySuccess(String orderNo) {
+        //1 根据订单编号查询订单信息，更新订单状态：已支付
+        LambdaQueryWrapper<OrderInfo> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(OrderInfo::getOrderNo, orderNo);
+        OrderInfo orderInfo = orderInfoMapper.selectOne(queryWrapper);
+        orderInfo.setOrderStatus(SystemConstant.ORDER_STATUS_PAID);
+        orderInfoMapper.updateById(orderInfo);
+        //2 发送MQ消息通知用户服务新增用户购买记录
+        UserPaidRecordVo userPaidRecordVo = new UserPaidRecordVo();
+        userPaidRecordVo.setOrderNo(orderNo);
+        userPaidRecordVo.setUserId(orderInfo.getUserId());
+        userPaidRecordVo.setItemType(orderInfo.getItemType());
+        //获取订单明细 封装用户购买项合集
+        List<OrderDetail> orderDetailList = orderDetailMapper.selectList(new LambdaQueryWrapper<OrderDetail>().eq(OrderDetail::getOrderId, orderInfo.getId()));
+        if (CollectionUtil.isNotEmpty(orderDetailList)) {
+            List<Long> list = orderDetailList.stream().map(OrderDetail::getItemId).collect(Collectors.toList());
+            userPaidRecordVo.setItemIdList(list);
+            kafkaService.sendMessage(KafkaConstant.QUEUE_USER_PAY_RECORD, JSON.toJSONString(userPaidRecordVo));
+        }
     }
 }

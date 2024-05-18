@@ -78,4 +78,10 @@ public interface OrderInfoService extends IService<OrderInfo> {
      * @param orderId
      */
     void orderCancle(String orderId);
+
+    /**
+     * 更新订单状态未已支付，基于MQ异步新增用户购买记录
+     * @param orderNo
+     */
+    void orderPaySuccess(String orderNo);
 }
