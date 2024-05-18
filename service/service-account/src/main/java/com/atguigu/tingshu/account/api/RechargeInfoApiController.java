@@ -1,15 +1,16 @@
 package com.atguigu.tingshu.account.api;
 
 import com.atguigu.tingshu.account.service.RechargeInfoService;
+import com.atguigu.tingshu.common.login.GuiGuLogin;
 import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.model.account.RechargeInfo;
+import com.atguigu.tingshu.vo.account.RechargeInfoVo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @Tag(name = "充值管理")
 @RestController
@@ -33,5 +34,19 @@ public class RechargeInfoApiController {
         RechargeInfo rechargeInfo = rechargeInfoService.getRechargeInfoByOrderNo(orderNo);
         return Result.ok(rechargeInfo);
     }
+
+    /**
+     * 用户余额充值（保存充值记录）
+     * @param rechargeInfoVo
+     * @return
+     */
+    @GuiGuLogin
+    @Operation(summary = "用户余额充值")
+    @PostMapping("/rechargeInfo/submitRecharge")
+    public Result<Map<String, String>> submitRecharge(@RequestBody RechargeInfoVo rechargeInfoVo) {
+        Map<String, String> map = rechargeInfoService.submitRecharge(rechargeInfoVo);
+        return Result.ok(map);
+    }
+
 }
 
