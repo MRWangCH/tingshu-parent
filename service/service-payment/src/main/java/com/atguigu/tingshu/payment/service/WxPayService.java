@@ -1,5 +1,7 @@
 package com.atguigu.tingshu.payment.service;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import java.util.Map;
 
 public interface WxPayService {
@@ -19,4 +21,11 @@ public interface WxPayService {
      * @return
      */
     Boolean queryPayStatus(String orderNo);
+
+    /**
+     * 处理微信支付异步回调
+     * @param request
+     * @return
+     */
+    Map<String, String> notifyTractionStatus(HttpServletRequest request);
 }

@@ -5,6 +5,7 @@ import com.atguigu.tingshu.common.result.Result;
 import com.atguigu.tingshu.payment.service.WxPayService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -47,6 +48,18 @@ public class WxPayApiController {
     public Result<Boolean> queryPayStatus(@PathVariable String orderNo) {
         Boolean flag = wxPayService.queryPayStatus(orderNo);
         return Result.ok(flag);
+    }
+
+    /**
+     * 微信支付异步通知接口
+     * @param request
+     * @return
+     */
+    @Operation(summary = "微信支付异步通知接口")
+    @PostMapping("/wxpay/notify")
+    public Map<String, String> notify(HttpServletRequest request) {
+        Map<String, String> map = wxPayService.notifyTractionStatus(request);
+        return map;
     }
 
 }

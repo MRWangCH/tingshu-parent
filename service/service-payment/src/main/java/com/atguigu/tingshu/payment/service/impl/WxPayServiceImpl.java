@@ -8,11 +8,17 @@ import com.atguigu.tingshu.order.client.OrderFeignClient;
 import com.atguigu.tingshu.payment.config.WxPayV3Config;
 import com.atguigu.tingshu.payment.service.PaymentInfoService;
 import com.atguigu.tingshu.payment.service.WxPayService;
+import com.atguigu.tingshu.payment.util.PayUtil;
 import com.atguigu.tingshu.user.client.UserFeignClient;
 import com.atguigu.tingshu.vo.user.UserInfoVo;
+import com.wechat.pay.java.core.RSAAutoCertificateConfig;
+import com.wechat.pay.java.core.notification.NotificationConfig;
+import com.wechat.pay.java.core.notification.NotificationParser;
+import com.wechat.pay.java.core.notification.RequestParam;
 import com.wechat.pay.java.service.payments.jsapi.JsapiServiceExtension;
 import com.wechat.pay.java.service.payments.jsapi.model.*;
 import com.wechat.pay.java.service.payments.model.Transaction;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,6 +44,9 @@ public class WxPayServiceImpl implements WxPayService {
 
     @Autowired
     private UserFeignClient userFeignClient;
+
+    @Autowired
+    private RSAAutoCertificateConfig config;
 
 
     /**
@@ -114,5 +123,53 @@ public class WxPayServiceImpl implements WxPayService {
             log.error("[支付]查询订单交易异常：{}", e);
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * 处理微信支付异步回调
+     *
+     * @param request
+     * @return
+     */
+    @Override
+    public Map<String, String> notifyTractionStatus(HttpServletRequest request) {
+        try {
+            //1 验证签名，验证数据是否被篡改 避免假通知
+            String wechatPaySerial = request.getHeader("Wechatpay-Serial");  //签名
+            String nonce = request.getHeader("Wechatpay-Nonce");  //签名中的随机数
+            String timestamp = request.getHeader("Wechatpay-Timestamp"); //时间戳
+            String signature = request.getHeader("Wechatpay-Signature"); //签名类型
+            log.info("wechatPaySerial：{}", wechatPaySerial);
+            log.info("nonce：{}", nonce);
+            log.info("timestamp：{}", timestamp);
+            log.info("signature：{}", signature);
+            //1.1 构建RequestParam
+            String requestBody = PayUtil.readData(request);
+            RequestParam requestParam = new RequestParam.Builder()
+                    .serialNumber(wechatPaySerial)
+                    .nonce(nonce)
+                    .signature(signature)
+                    .timestamp(timestamp)
+                    .body(requestBody)
+                    .build();
+            //1.2 NotificationParser 用于真正验签对象
+            NotificationParser parser = new NotificationParser(config);
+            //2 验签通过，获取支付结果
+            Transaction transaction = parser.parse(requestParam, Transaction.class);
+            if (transaction != null && transaction.getTradeState() == Transaction.TradeStateEnum.SUCCESS) {
+                //3 根据支付结果处理后续：本地交易记录，订单，购买记录
+                Map<String, String> map = new HashMap<>();
+                map.put("code", "SUCCESS");
+                map.put("message", "SUCCESS");
+                return map;
+            }
+        } catch (Exception e) {
+            log.error("[支付]获取支付结果异常：{}", e);
+            throw new RuntimeException(e);
+        }
+        Map<String, String> hashMap = new HashMap<>();
+        hashMap.put("code", "FALL");
+        hashMap.put("message", "FALL");
+        return hashMap;
     }
 }
