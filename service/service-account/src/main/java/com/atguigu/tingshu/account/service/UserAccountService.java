@@ -4,6 +4,7 @@ import com.atguigu.tingshu.model.account.UserAccount;
 import com.atguigu.tingshu.vo.account.AccountLockResultVo;
 import com.atguigu.tingshu.vo.account.AccountLockVo;
 import com.baomidou.mybatisplus.extension.service.IService;
+import org.apache.ibatis.annotations.Param;
 
 import java.math.BigDecimal;
 
@@ -58,4 +59,11 @@ public interface UserAccountService extends IService<UserAccount> {
      * @param orderNo
      */
     void accountUnlock(String orderNo);
+
+    /**
+     * 为指定账户充值金额
+     * @param userId
+     * @param rechargeAmount
+     */
+    void add(Long userId, BigDecimal rechargeAmount);
 }

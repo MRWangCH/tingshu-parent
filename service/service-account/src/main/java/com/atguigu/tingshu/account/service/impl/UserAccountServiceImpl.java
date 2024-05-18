@@ -215,4 +215,14 @@ public class UserAccountServiceImpl extends ServiceImpl<UserAccountMapper, UserA
             redisTemplate.delete(lockKeyResult);
         }
     }
+
+    /**
+     * 为指定账户充值金额
+     * @param userId
+     * @param rechargeAmount
+     */
+    @Override
+    public void add(Long userId, BigDecimal rechargeAmount) {
+        userAccountMapper.add(userId, rechargeAmount);
+    }
 }

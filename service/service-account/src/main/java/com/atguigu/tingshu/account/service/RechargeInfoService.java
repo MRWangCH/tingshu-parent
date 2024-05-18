@@ -24,4 +24,10 @@ public interface RechargeInfoService extends IService<RechargeInfo> {
      * @return
      */
     Map<String, String> submitRecharge(RechargeInfoVo rechargeInfoVo);
+
+    /**
+     * 处理充值成功消息
+     * @param orderNo
+     */
+    void rechargeSuccess(String orderNo);
 }

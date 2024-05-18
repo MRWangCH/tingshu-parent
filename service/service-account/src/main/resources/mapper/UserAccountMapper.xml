@@ -12,6 +12,7 @@
         id
         ,user_id,total_amount,lock_amount,available_amount,total_income_amount,total_pay_amount,create_time,update_time,is_deleted
     </sql>
+
     <!--	查询可用余额是否充足：采用悲观锁-->
     <select id="check" resultType="com.atguigu.tingshu.model.account.UserAccount">
         select *
@@ -44,6 +45,13 @@
             available_amount = available_amount + #{amount}
         where user_id = #{userId}
     </update>
-
+    <!-- 为指定账户充值金额   -->
+    <insert id="add">
+        UPDATE user_account
+        set total_amount        = total_amount + #{amount},
+            available_amount=available_amount + #{amount},
+            total_income_amount = total_income_amount + #{amount}
+        where user_id = #{userId}
+    </insert>
 </mapper>
 
