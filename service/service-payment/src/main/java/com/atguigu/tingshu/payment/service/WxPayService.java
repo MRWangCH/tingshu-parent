@@ -11,4 +11,12 @@ public interface WxPayService {
      * @return
      */
     Map<String, String> createJsapiWxPayForm(String paymentType, String orderNo);
+
+    /**
+     * 根据商户订单编号查询，查询微信支付状态
+     *
+     * @param orderNo
+     * @return
+     */
+    Boolean queryPayStatus(String orderNo);
 }

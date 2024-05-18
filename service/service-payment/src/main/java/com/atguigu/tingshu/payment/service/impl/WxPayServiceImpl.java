@@ -11,10 +11,8 @@ import com.atguigu.tingshu.payment.service.WxPayService;
 import com.atguigu.tingshu.user.client.UserFeignClient;
 import com.atguigu.tingshu.vo.user.UserInfoVo;
 import com.wechat.pay.java.service.payments.jsapi.JsapiServiceExtension;
-import com.wechat.pay.java.service.payments.jsapi.model.Amount;
-import com.wechat.pay.java.service.payments.jsapi.model.Payer;
-import com.wechat.pay.java.service.payments.jsapi.model.PrepayRequest;
-import com.wechat.pay.java.service.payments.jsapi.model.PrepayWithRequestPaymentResponse;
+import com.wechat.pay.java.service.payments.jsapi.model.*;
+import com.wechat.pay.java.service.payments.model.Transaction;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -86,5 +84,35 @@ public class WxPayServiceImpl implements WxPayService {
             throw new RuntimeException(e);
         }
         return null;
+    }
+
+    /**
+     * 根据商户订单编号查询，查询微信支付状态
+     *
+     * @param orderNo
+     * @return
+     */
+    @Override
+    public Boolean queryPayStatus(String orderNo) {
+        try {
+            //1 构建微信交易结果查询对象-按照订单编号查询
+            QueryOrderByOutTradeNoRequest request = new QueryOrderByOutTradeNoRequest();
+            request.setMchid(wxPayV3Config.getMerchantId());
+            request.setOutTradeNo(orderNo);
+            //2 发送请求查询微信交易结果
+            Transaction transaction = service.queryOrderByOutTradeNo(request);
+            //3 解析结果得到支付状态
+            if (transaction != null) {
+                Transaction.TradeStateEnum tradeState = transaction.getTradeState();
+                if (Transaction.TradeStateEnum.SUCCESS == tradeState) {
+                    //用户支付成功
+                    return true;
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            log.error("[支付]查询订单交易异常：{}", e);
+            throw new RuntimeException(e);
+        }
     }
 }

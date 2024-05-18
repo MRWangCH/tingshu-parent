@@ -7,10 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
@@ -37,6 +34,19 @@ public class WxPayApiController {
     public Result<Map<String, String>> createJsapi(@PathVariable String paymentType, @PathVariable String orderNo) {
         Map<String, String> wxPayResult = wxPayService.createJsapiWxPayForm(paymentType, orderNo);
         return Result.ok(wxPayResult);
+    }
+
+    /**
+     * 根据商户订单编号查询，查询微信支付状态
+     *
+     * @param orderNo
+     * @return
+     */
+    @Operation(summary = "根据商户订单编号查询，查询微信支付状态")
+    @GetMapping("/wxPay/queryPayStatus/{orderNo}")
+    public Result<Boolean> queryPayStatus(@PathVariable String orderNo) {
+        Boolean flag = wxPayService.queryPayStatus(orderNo);
+        return Result.ok(flag);
     }
 
 }
