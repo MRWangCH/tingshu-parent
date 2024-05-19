@@ -18,6 +18,12 @@
         WHERE user_id = #{userId}
           AND trade_type = '1201'
     </select>
+    <select id="getUserConsumePage" resultType="com.atguigu.tingshu.model.account.UserAccountDetail">
+        SELECT *
+        FROM user_account_detail
+        WHERE user_id = #{userId}
+          AND trade_type = '1204'
+    </select>
 
 
 </mapper>

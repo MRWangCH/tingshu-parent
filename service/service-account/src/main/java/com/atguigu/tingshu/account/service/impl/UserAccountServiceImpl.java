@@ -229,7 +229,7 @@ public class UserAccountServiceImpl extends ServiceImpl<UserAccountMapper, UserA
     }
 
     /**
-     * 分页获取消费记录
+     * 分页获充值记录
      *
      * @param pageInfo
      * @param userId
@@ -238,5 +238,17 @@ public class UserAccountServiceImpl extends ServiceImpl<UserAccountMapper, UserA
     @Override
     public void getUserRechargePage(Page<UserAccountDetail> pageInfo, Long userId) {
         userAccountDetailMapper.getUserRechargePage(pageInfo, userId);
+    }
+
+    /**
+     * 分页获消费记录
+     *
+     * @param pageInfo
+     * @param userId
+     * @return
+     */
+    @Override
+    public void getUserConsumePage(Page<UserAccountDetail> pageInfo, Long userId) {
+        userAccountDetailMapper.getUserConsumePage(pageInfo, userId);
     }
 }

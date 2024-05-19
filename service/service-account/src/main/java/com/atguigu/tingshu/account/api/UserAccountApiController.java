@@ -71,5 +71,22 @@ public class UserAccountApiController {
         userAccountService.getUserRechargePage(pageInfo, userId);
         return Result.ok(pageInfo);
     }
+
+    /**
+     * 获取消费记录
+     *
+     * @param page
+     * @param limit
+     * @return
+     */
+    @Operation(summary = "获取充值记录")
+    @GuiGuLogin
+    @GetMapping("/userAccount/findUserConsumePage/{page}/{limit}")
+    public Result<Page<UserAccountDetail>> getUserConsumePage(@PathVariable Long page, @PathVariable Long limit) {
+        Long userId = AuthContextHolder.getUserId();
+        Page<UserAccountDetail> pageInfo = new Page<>(page, limit);
+        userAccountService.getUserConsumePage(pageInfo, userId);
+        return Result.ok(pageInfo);
+    }
 }
 

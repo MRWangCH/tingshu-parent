@@ -70,11 +70,20 @@ public interface UserAccountService extends IService<UserAccount> {
     void add(Long userId, BigDecimal rechargeAmount);
 
     /**
-     * 分页获取消费记录
+     * 分页获取充值记录
      *
      * @param pageInfo
      * @param userId
      * @return
      */
     void getUserRechargePage(Page<UserAccountDetail> pageInfo, Long userId);
+
+    /**
+     * 分页获取消费记录
+     *
+     * @param pageInfo
+     * @param userId
+     * @return
+     */
+    void getUserConsumePage(Page<UserAccountDetail> pageInfo, Long userId);
 }

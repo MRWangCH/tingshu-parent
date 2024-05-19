@@ -9,9 +9,16 @@ import org.apache.ibatis.annotations.Mapper;
 public interface UserAccountDetailMapper extends BaseMapper<UserAccountDetail> {
 
     /**
-     * 查询消费记录
+     * 查询充值记录
      * @param pageInfo
      * @param userId
      */
     Page<UserAccountDetail> getUserRechargePage(Page<UserAccountDetail> pageInfo, Long userId);
+
+    /**
+     * 查询消费记录
+     * @param pageInfo
+     * @param userId
+     */
+    Page<UserAccountDetail>  getUserConsumePage(Page<UserAccountDetail> pageInfo, Long userId);
 }
