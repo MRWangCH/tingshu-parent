@@ -4,12 +4,21 @@
 
 <mapper namespace="com.atguigu.tingshu.account.mapper.UserAccountDetailMapper">
 
-	<resultMap id="RechargeInfoMap" type="com.atguigu.tingshu.model.account.UserAccountDetail" autoMapping="true">
-	</resultMap>
+    <resultMap id="RechargeInfoMap" type="com.atguigu.tingshu.model.account.UserAccountDetail" autoMapping="true">
+    </resultMap>
 
-	<sql id="columns">
-		id,user_id,title,trade_type,amount,order_no,create_time,update_time,is_deleted
-	</sql>
+    <sql id="columns">
+        id
+        ,user_id,title,trade_type,amount,order_no,create_time,update_time,is_deleted
+    </sql>
+    <!--		-->
+    <select id="getUserRechargePage" resultType="com.atguigu.tingshu.model.account.UserAccountDetail">
+        SELECT *
+        FROM user_account_detail
+        WHERE user_id = #{userId}
+          AND trade_type = '1201'
+    </select>
+
 
 </mapper>
 

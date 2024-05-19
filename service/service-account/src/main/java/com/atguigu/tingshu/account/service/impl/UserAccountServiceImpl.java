@@ -13,6 +13,7 @@ import com.atguigu.tingshu.model.account.UserAccountDetail;
 import com.atguigu.tingshu.vo.account.AccountLockResultVo;
 import com.atguigu.tingshu.vo.account.AccountLockVo;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -218,11 +219,24 @@ public class UserAccountServiceImpl extends ServiceImpl<UserAccountMapper, UserA
 
     /**
      * 为指定账户充值金额
+     *
      * @param userId
      * @param rechargeAmount
      */
     @Override
     public void add(Long userId, BigDecimal rechargeAmount) {
         userAccountMapper.add(userId, rechargeAmount);
+    }
+
+    /**
+     * 分页获取消费记录
+     *
+     * @param pageInfo
+     * @param userId
+     * @return
+     */
+    @Override
+    public void getUserRechargePage(Page<UserAccountDetail> pageInfo, Long userId) {
+        userAccountDetailMapper.getUserRechargePage(pageInfo, userId);
     }
 }
