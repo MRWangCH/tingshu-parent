@@ -1,6 +1,7 @@
 package com.atguigu.tingshu.dispatch.job;
 
 import com.atguigu.tingshu.search.client.SearchFeignClient;
+import com.atguigu.tingshu.user.client.UserFeignClient;
 import com.xxl.job.core.biz.model.ReturnT;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,9 @@ public class DispatchHandler {
 
     @Autowired
     private SearchFeignClient searchFeignClient;
+
+    @Autowired
+    private UserFeignClient userFeignClient;
 
     /**
      * 定时执行热门专辑的更新
@@ -32,6 +36,7 @@ public class DispatchHandler {
     @XxlJob("updateUserVIPStatusJob")
     public ReturnT updateUserVIPStatusJob() {
         try {
+            userFeignClient.updateVipExpireStatus();
             log.info("定时执行用户vip状态的更新");
             return ReturnT.SUCCESS;
         } catch (Exception e) {

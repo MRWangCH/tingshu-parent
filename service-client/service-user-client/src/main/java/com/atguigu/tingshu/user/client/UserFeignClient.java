@@ -64,4 +64,11 @@ public interface UserFeignClient {
      */
     @GetMapping("/userInfo/findUserPaidTrackList/{albumId}")
     public Result<List<Long>> getUserPaidTrackList(@PathVariable Long albumId);
+
+    /**
+     * 更新vip到期失效状态
+     * @return
+     */
+    @GetMapping("updateVipExpireStatus")
+    public Result updateVipExpireStatus();
 }

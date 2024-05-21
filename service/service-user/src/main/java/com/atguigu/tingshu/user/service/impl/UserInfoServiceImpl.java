@@ -328,4 +328,25 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
             }
         }
     }
+
+    /**
+     * 更新vip到期失效状态
+     *
+     * @return
+     */
+    @Override
+    public void updateVipExpireStatus() {
+        //1 已过期会员列表
+        LambdaQueryWrapper<UserInfo> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(UserInfo::getIsVip, "1");
+        queryWrapper.lt(UserInfo::getVipExpireTime, DateUtil.beginOfDay(new Date()));
+        List<UserInfo> userInfoList = userInfoMapper.selectList(queryWrapper);
+        //2 批量更新
+        if (CollectionUtil.isNotEmpty(userInfoList)) {
+            userInfoList.forEach(userInfo -> {
+                userInfo.setIsVip(0);
+                this.updateBatchById(userInfoList);
+            });
+        }
+    }
 }

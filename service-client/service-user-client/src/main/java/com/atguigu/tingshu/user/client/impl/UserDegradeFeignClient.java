@@ -44,4 +44,10 @@ public class UserDegradeFeignClient implements UserFeignClient {
         log.error("远程调用[用户服务getUserPaidTrackList方法服务降级]");
         return null;
     }
+
+    @Override
+    public Result updateVipExpireStatus() {
+        log.error("远程调用[用户服务updateVipExpireStatus方法服务降级]");
+        return null;
+    }
 }

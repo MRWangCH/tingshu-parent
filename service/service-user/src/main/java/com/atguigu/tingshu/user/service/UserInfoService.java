@@ -60,4 +60,10 @@ public interface UserInfoService extends IService<UserInfo> {
      * @param userPaidRecordVo
      */
     void saveUserPayRecord(UserPaidRecordVo userPaidRecordVo);
+
+    /**
+     * 更新vip到期失效状态
+     * @return
+     */
+    void updateVipExpireStatus();
 }
