@@ -27,6 +27,12 @@
             <groupId>com.xuxueli</groupId>
             <artifactId>xxl-job-core</artifactId>
         </dependency>
+
+        <dependency>
+            <groupId>com.atguigu.tingshu</groupId>
+            <artifactId>service-search-client</artifactId>
+            <version>1.0</version>
+        </dependency>
     </dependencies>
 
     <build>
