@@ -343,10 +343,13 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         List<UserInfo> userInfoList = userInfoMapper.selectList(queryWrapper);
         //2 批量更新
         if (CollectionUtil.isNotEmpty(userInfoList)) {
-            userInfoList.forEach(userInfo -> {
-                userInfo.setIsVip(0);
-                this.updateBatchById(userInfoList);
-            });
+            List<UserInfo> collect = userInfoList.stream().map(userInfo -> {
+                UserInfo userInfoVo = new UserInfo();
+                userInfoVo.setIsVip(0);
+                userInfoVo.setId(userInfo.getId());
+                return userInfoVo;
+            }).collect(Collectors.toList());
+            this.updateBatchById(collect);
         }
     }
 }
